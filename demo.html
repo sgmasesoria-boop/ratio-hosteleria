@@ -98,9 +98,13 @@ input:focus,select:focus,textarea:focus{border-color:var(--focus)}
 
 .chip{display:inline-flex; align-items:center; gap:5px; font-size:.72rem; font-weight:700; padding:3px 9px; border-radius:999px; text-transform:uppercase; letter-spacing:.03em}
 .chip.revisar{background:var(--warn-bg); color:var(--warn)}
-.chip.pendiente{background:var(--surface-2); color:var(--muted)}
+.chip.pendiente{background:var(--bad-bg); color:var(--bad)}
 .chip.confirmada{background:var(--good-bg); color:var(--good)}
 .chip.dup{background:var(--bad-bg); color:var(--bad)}
+
+.lineitem.incidencia{border-width:2px}
+.lineitem.incidencia.c-revisar{border-color:var(--warn); background:var(--warn-bg)}
+.lineitem.incidencia.c-pendiente{border-color:var(--bad); background:var(--bad-bg)}
 
 .sugs{display:flex; flex-wrap:wrap; gap:8px; margin:8px 0}
 .sug{border:1px solid var(--border); background:var(--surface-2); border-radius:9px; padding:7px 11px; font-size:.86rem; cursor:pointer; text-align:left}
@@ -231,15 +235,15 @@ body{padding-top:28px}
 
       <div class="camera-cta" id="dropZoneCompras">
         <div class="ic">📷</div>
-        <div style="font-weight:700; margin-bottom:6px">Foto de albarán, factura o ticket</div>
-        <div class="lead" style="margin:0 0 12px">En esta demo la lectura automática está simulada: verás un aviso. Para probar la pantalla de revisar usa un documento de la lista de abajo, o mete la compra a mano.</div>
+        <div style="font-weight:700; margin-bottom:6px">Foto o PDF escaneado de albarán, factura o ticket</div>
+        <div class="lead" style="margin:0 0 12px">También vale un PDF escaneado, no solo foto. En esta demo la lectura automática está simulada: verás un aviso. Para probar la pantalla de revisar usa un documento de la lista de abajo, o mete la compra a mano.</div>
         <div class="upload-row">
           <button class="btn primary" id="btnCamaraCompra" type="button">Hacer foto</button>
-          <button class="btn" id="btnGaleriaCompra" type="button">Elegir archivo</button>
+          <button class="btn" id="btnGaleriaCompra" type="button">Elegir foto o PDF</button>
         </div>
       </div>
       <input type="file" id="fileCamaraCompra" accept="image/*" capture="environment" hidden>
-      <input type="file" id="fileGaleriaCompra" accept="image/*" hidden>
+      <input type="file" id="fileGaleriaCompra" accept="image/*,application/pdf,.pdf" hidden>
       <div id="subirEstadoCompras" class="card" hidden></div>
 
       <button class="btn" id="btnCompraManual" type="button" style="margin:12px 0">+ Meter compra a mano</button>
@@ -254,15 +258,15 @@ body{padding-top:28px}
 
       <div class="camera-cta" id="dropZoneVentas">
         <div class="ic">📷</div>
-        <div style="font-weight:700; margin-bottom:6px">Foto del ticket Z o archivo de ventas</div>
-        <div class="lead" style="margin:0 0 12px">En esta demo la lectura automática está simulada: verás un aviso. Para probar la pantalla de revisar usa un documento de la lista de abajo, o mete la venta a mano.</div>
+        <div style="font-weight:700; margin-bottom:6px">Foto, PDF escaneado o archivo de ventas</div>
+        <div class="lead" style="margin:0 0 12px">También vale un PDF escaneado del ticket Z, no solo foto. En esta demo la lectura automática está simulada: verás un aviso. Para probar la pantalla de revisar usa un documento de la lista de abajo, o mete la venta a mano.</div>
         <div class="upload-row">
           <button class="btn primary" id="btnCamaraVenta" type="button">Hacer foto</button>
           <button class="btn" id="btnGaleriaVenta" type="button">Elegir archivo</button>
         </div>
       </div>
       <input type="file" id="fileCamaraVenta" accept="image/*" capture="environment" hidden>
-      <input type="file" id="fileGaleriaVenta" accept="image/*,.csv,.xls,.xlsx" hidden>
+      <input type="file" id="fileGaleriaVenta" accept="image/*,application/pdf,.pdf,.csv,.xls,.xlsx" hidden>
       <div id="subirEstadoVentas" class="card" hidden></div>
 
       <button class="btn" id="btnVentaManual" type="button" style="margin:12px 0">+ Meter venta a mano</button>
@@ -404,7 +408,7 @@ body{padding-top:28px}
     ],
     compras: [
       { id: "c1", numero: "A-2026-0931", fecha: "2026-10-15", total: 612.40, estado: "confirmada", tipo_documento: "albaran", proveedores: { nombre: "Distribuciones Hosteleras Granada SL" } },
-      { id: "c2", numero: "A-2026-0944", fecha: "2026-10-22", total: 284.95, estado: "revisar", tipo_documento: "albaran", proveedores: { nombre: "Pescados Costa Tropical" } },
+      { id: "c2", numero: "A-2026-0944", fecha: "2026-10-22", total: 284.95, estado: "revisar", tipo_documento: "albaran", proveedor_id: "p2", proveedores: { nombre: "Pescados Costa Tropical" } },
       { id: "c3", numero: "F-2026-0118", fecha: "2026-10-24", total: 97.30, estado: "pendiente", tipo_documento: "factura", proveedores: null }
     ],
     compraLineas: {
@@ -474,15 +478,27 @@ body{padding-top:28px}
     var t = norm(texto);
     t = ALIAS[t] || t;
     if (!t) return [];
-    var res = [];
-    (propios||[]).forEach(function(n){ res.push({ fuente:"propio", nombre:n, sim: similitud(t, norm(n)) }); });
-    (catalogo||[]).forEach(function(n){ res.push({ fuente:"catalogo", nombre:n, sim: similitud(t, norm(n)) }); });
-    return res.filter(function(r){ return r.sim > 0.12; }).sort(function(a,b){ return b.sim - a.sim; }).slice(0,6);
+    // un único resultado por nombre: si ya lo tienes, ese manda sobre el del catálogo
+    var porNombre = {};
+    (propios||[]).forEach(function(n){
+      var k = norm(n);
+      porNombre[k] = { nombre: n, sim: similitud(t, k) };
+    });
+    (catalogo||[]).forEach(function(n){
+      var k = norm(n);
+      if (porNombre[k]) return;
+      porNombre[k] = { nombre: n, sim: similitud(t, k) };
+    });
+    return Object.keys(porNombre).map(function(k){ return porNombre[k]; })
+      .filter(function(r){ return r.sim > 0.12; })
+      .sort(function(a,b){ return b.sim - a.sim; })
+      .slice(0,6);
   }
 
-  // Autocompletado genérico: engancha un <input> a una lista de sugerencias que aparece debajo.
-  // Es el único método para elegir proveedor/producto/plato: busca mientras escribes entre lo que
-  // ya tienes y el catálogo de referencia; si no existe, "+ Crear ... como nuevo" lo da de alta solo.
+  // Autocompletado genérico: engancha un <input> a una lista que aparece debajo.
+  // Es el único método para elegir proveedor/producto/plato: con solo tocar el campo ya se puede
+  // buscar/ver lo que ya tienes (sin escribir nada), y al escribir busca también en el catálogo de
+  // referencia; si no existe, "+ Crear ... como nuevo" lo da de alta solo.
   function wireAutocomplete(input, propiosFn, catalogo){
     var wrap = document.createElement("div");
     wrap.className = "ac-wrap";
@@ -494,32 +510,39 @@ body{padding-top:28px}
     wrap.appendChild(list);
     var timer = null;
 
+    function pintarLista(nombres, conCrear, textoCrear){
+      if (!nombres.length && !conCrear){ list.hidden = true; return; }
+      var html = nombres.map(function(n){
+        return '<div class="ac-item" data-pick="'+esc(n)+'">'+esc(n)+'</div>';
+      }).join("");
+      if (conCrear) html += '<div class="ac-item ac-new" data-pick="'+esc(textoCrear)+'">+ Crear "'+esc(textoCrear)+'" como nuevo</div>';
+      list.innerHTML = html;
+      list.hidden = false;
+      qsa(".ac-item", list).forEach(function(it){
+        it.addEventListener("mousedown", function(ev){
+          ev.preventDefault();
+          input.value = it.dataset.pick;
+          list.hidden = true;
+        });
+      });
+    }
+
+    function buscar(){
+      var texto = input.value;
+      if (texto.trim().length < 2){
+        pintarLista(propiosFn().slice(0,8), false, "");
+        return;
+      }
+      var res = sugerir(texto, propiosFn(), catalogo);
+      pintarLista(res.map(function(r){ return r.nombre; }), true, texto.trim());
+    }
+
     input.addEventListener("input", function(){
       clearTimeout(timer);
-      var texto = input.value;
-      if (texto.trim().length < 2){ list.hidden = true; return; }
-      timer = setTimeout(function(){
-        var res = sugerir(texto, propiosFn(), catalogo);
-        if (!res.length){
-          list.innerHTML = '<div class="ac-item ac-new">+ Crear "'+esc(texto.trim())+'" como nuevo</div>';
-        } else {
-          list.innerHTML = res.map(function(r){
-            return '<div class="ac-item" data-pick="'+esc(r.nombre)+'">'+esc(r.nombre)+
-              '<span class="ac-src">'+(r.fuente==="propio"?"ya lo tienes":"catálogo")+'</span></div>';
-          }).join("") + '<div class="ac-item ac-new" data-pick="'+esc(texto.trim())+'">+ Crear "'+esc(texto.trim())+'" como nuevo</div>';
-        }
-        list.hidden = false;
-        qsa(".ac-item", list).forEach(function(it){
-          it.addEventListener("mousedown", function(ev){
-            ev.preventDefault();
-            input.value = it.dataset.pick;
-            list.hidden = true;
-          });
-        });
-      }, 150);
+      timer = setTimeout(buscar, 150);
     });
     input.addEventListener("blur", function(){ setTimeout(function(){ list.hidden = true; }, 150); });
-    input.addEventListener("focus", function(){ if (input.value.trim().length >= 2) input.dispatchEvent(new Event("input")); });
+    input.addEventListener("focus", buscar);
   }
 
   // Dado un texto escrito, busca un proveedor existente por nombre exacto (normalizado);
@@ -958,7 +981,8 @@ body{padding-top:28px}
         sb.rpc("confirmar_compra", { p_compra: compraId }).then(function(r){
           if (r.error){ toast(r.error.message, "err"); setLoading(cb,false,null,"Confirmar compra"); return; }
           toast("Compra confirmada.", "ok");
-          refrescar();
+          closeModal();
+          cargarCompras();
         });
       });
 
@@ -1156,7 +1180,8 @@ body{padding-top:28px}
   // ---------- COMPRAS (lista) ----------
   function renderCompraCard(c){
     var prov = c.proveedores ? c.proveedores.nombre : "Sin proveedor";
-    return '<div class="lineitem" data-compra="'+c.id+'" data-nombre="'+esc(prov)+'" style="cursor:pointer">' +
+    var inc = c.estado!=="confirmada" ? " incidencia c-"+c.estado : "";
+    return '<div class="lineitem'+inc+'" data-compra="'+c.id+'" data-nombre="'+esc(prov)+'" style="cursor:pointer">' +
       '<div class="row between"><span class="txt">'+esc(prov)+'</span><span class="chip '+c.estado+'">'+c.estado+'</span></div>' +
       '<div class="meta">'+fecha(c.fecha)+' · '+esc(c.numero||c.tipo_documento)+' · '+eur(c.total)+'</div>' +
       '</div>';
@@ -1317,7 +1342,8 @@ body{padding-top:28px}
         sb.rpc("confirmar_venta", { p_venta: ventaId }).then(function(r){
           if (r.error){ toast(r.error.message, "err"); setLoading(cb,false,null,"Confirmar venta"); return; }
           toast("Venta confirmada.", "ok");
-          refrescar();
+          closeModal();
+          cargarVentas();
         });
       });
 
@@ -1326,7 +1352,8 @@ body{padding-top:28px}
   }
 
   function renderVentaCard(v){
-    return '<div class="lineitem" data-venta="'+v.id+'" style="cursor:pointer">' +
+    var inc = v.estado!=="confirmada" ? " incidencia c-"+v.estado : "";
+    return '<div class="lineitem'+inc+'" data-venta="'+v.id+'" style="cursor:pointer">' +
       '<div class="row between"><span class="txt">'+esc(v.numero||v.tipo_documento)+'</span><span class="chip '+v.estado+'">'+v.estado+'</span></div>' +
       '<div class="meta">'+fecha(v.fecha)+' · '+eur(v.total)+'</div>' +
       '</div>';
