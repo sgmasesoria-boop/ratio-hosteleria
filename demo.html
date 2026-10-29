@@ -1,0 +1,861 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Ratio Hostelería · Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}
+img{max-width:100%}
+[hidden]:not([hidden=until-found i]){display:none!important}
+/* Layout concept: phone-shaped single-page app. Sticky header with the business
+   name and a live status dot, scrolling content, bottom tab bar — built to be
+   used one-handed at the delivery dock, ticket in one hand, phone in the other. */
+:root{
+  --bg:#f3efe6; --surface:#ffffff; --surface-2:#ece5d4; --fg:#20231e; --muted:#6b6a5e;
+  --border:#d9d2bd; --accent:#b8860f; --accent-ink:#2a1e02;
+  --good:#2f7a4f; --good-bg:#e4f0e4; --warn:#a9631b; --warn-bg:#f5e6cf; --bad:#b23a3a; --bad-bg:#f6e0df;
+  --focus:#1f6e5c;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#13201c; --surface:#192a24; --surface-2:#1f352d; --fg:#eef1e8; --muted:#9aa89a;
+    --border:#2c4038; --accent:#e0a93a; --accent-ink:#1b1200;
+    --good:#5ec989; --good-bg:#1d3327; --warn:#e3a856; --warn-bg:#3a2d17; --bad:#e8847b; --bad-bg:#3a2320;
+    --focus:#5ec9ab;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#13201c; --surface:#192a24; --surface-2:#1f352d; --fg:#eef1e8; --muted:#9aa89a;
+  --border:#2c4038; --accent:#e0a93a; --accent-ink:#1b1200;
+  --good:#5ec989; --good-bg:#1d3327; --warn:#e3a856; --warn-bg:#3a2d17; --bad:#e8847b; --bad-bg:#3a2320;
+  --focus:#5ec9ab;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--bg); color:var(--fg);
+  font-family:"Libre Franklin",system-ui,-apple-system,"Segoe UI",sans-serif;
+  padding-left:max(16px, env(safe-area-inset-left,0px));
+  padding-right:max(16px, env(safe-area-inset-right,0px));
+  display:flex; justify-content:center;
+}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums}
+#app{width:100%; max-width:560px; min-height:100%; display:flex; flex-direction:column; position:relative}
+a{color:var(--focus)}
+button{font-family:inherit}
+:focus-visible{outline:2px solid var(--focus); outline-offset:2px}
+
+header.top{
+  position:sticky; top:env(safe-area-inset-top,0px); z-index:9;
+  background:var(--surface); border-bottom:1px solid var(--border);
+  padding:14px 0 12px; display:flex; align-items:center; gap:10px; justify-content:space-between;
+}
+header.top .brand{display:flex; align-items:baseline; gap:8px; min-width:0}
+header.top .brand b{font-size:1.05rem; font-weight:800; letter-spacing:-.01em; white-space:nowrap}
+header.top .neg{color:var(--muted); font-size:.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--good);flex:none}
+.dot.off{background:var(--muted)}
+.iconbtn{background:none;border:none;color:var(--muted);font-size:1rem;padding:6px;cursor:pointer;border-radius:8px}
+.iconbtn:hover{background:var(--surface-2)}
+
+main{flex:1; padding:16px 0 90px; min-width:0}
+section.view{display:none}
+section.view.active{display:block}
+
+h1{font-size:1.3rem;margin:0 0 4px;font-weight:800;letter-spacing:-.01em;text-wrap:balance}
+h2{font-size:1rem;margin:0 0 10px;font-weight:700}
+p.lead{color:var(--muted); margin:0 0 18px; font-size:.92rem; line-height:1.5}
+
+.card{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:12px}
+.card.tight{padding:12px 14px}
+.stack{display:flex; flex-direction:column; gap:12px}
+.row{display:flex; gap:10px; align-items:center}
+.row.between{justify-content:space-between}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+
+label{display:block; font-size:.78rem; color:var(--muted); margin-bottom:5px; font-weight:600; text-transform:uppercase; letter-spacing:.03em}
+input[type=text],input[type=email],input[type=password],input[type=number],select,textarea{
+  width:100%; padding:11px 12px; border-radius:10px; border:1px solid var(--border);
+  background:var(--surface); color:var(--fg); font-size:.95rem; font-family:inherit;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--focus)}
+
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  border:1px solid var(--border); background:var(--surface); color:var(--fg);
+  padding:12px 16px; border-radius:11px; font-size:.95rem; font-weight:600; cursor:pointer;
+  width:100%;
+}
+.btn:disabled{opacity:.5; cursor:default}
+.btn.primary{background:var(--accent); color:var(--accent-ink); border-color:transparent}
+.btn.ghost{background:transparent; border-color:transparent; color:var(--focus)}
+.btn.sm{width:auto; padding:8px 12px; font-size:.85rem; border-radius:9px}
+.btn.danger{color:var(--bad)}
+
+.chip{display:inline-flex; align-items:center; gap:5px; font-size:.72rem; font-weight:700; padding:3px 9px; border-radius:999px; text-transform:uppercase; letter-spacing:.03em}
+.chip.revisar{background:var(--warn-bg); color:var(--warn)}
+.chip.pendiente{background:var(--surface-2); color:var(--muted)}
+.chip.confirmada{background:var(--good-bg); color:var(--good)}
+.chip.dup{background:var(--bad-bg); color:var(--bad)}
+
+.sugs{display:flex; flex-wrap:wrap; gap:8px; margin:8px 0}
+.sug{border:1px solid var(--border); background:var(--surface-2); border-radius:9px; padding:7px 11px; font-size:.86rem; cursor:pointer; text-align:left}
+.sug small{display:block; color:var(--muted); font-size:.72rem}
+.sug.active{border-color:var(--focus); background:var(--focus); color:#fff}
+
+.statline{display:flex; justify-content:space-between; align-items:baseline; padding:9px 0; border-bottom:1px solid var(--border); gap:10px}
+.statline:last-child{border-bottom:none}
+.statline .k{color:var(--muted); font-size:.86rem; min-width:0}
+.statline .v{font-weight:700; white-space:nowrap}
+.statline .v.up{color:var(--bad)}
+.statline .v.down{color:var(--good)}
+
+.empty{text-align:center; color:var(--muted); padding:28px 10px; font-size:.9rem}
+.spin{width:18px;height:18px;border-radius:50%;border:2px solid var(--border);border-top-color:var(--accent);animation:sp .7s linear infinite; flex:none}
+@keyframes sp{to{transform:rotate(360deg)}}
+.toast{position:fixed; left:16px; right:16px; bottom:calc(86px + env(safe-area-inset-bottom,0px)); max-width:528px; margin:0 auto;
+  background:var(--fg); color:var(--bg); padding:12px 16px; border-radius:11px; font-size:.88rem; z-index:20; box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.toast.err{background:var(--bad)}
+.toast.ok{background:var(--good)}
+
+nav.tabs{
+  position:fixed; bottom:0; left:0; right:0; z-index:9; background:var(--surface); border-top:1px solid var(--border);
+  padding:8px max(16px, env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(16px, env(safe-area-inset-left,0px));
+  display:flex; justify-content:center;
+}
+nav.tabs .inner{width:100%; max-width:528px; display:flex; justify-content:space-around}
+nav.tabs button{background:none;border:none;color:var(--muted);font-size:.72rem;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:4px;padding:4px 10px;cursor:pointer;font-family:inherit}
+nav.tabs button .ic{font-size:1.15rem}
+nav.tabs button.active{color:var(--accent)}
+
+.camera-cta{border:2px dashed var(--border); border-radius:16px; padding:28px 16px; text-align:center; background:var(--surface)}
+.camera-cta .ic{font-size:2rem; margin-bottom:6px}
+.upload-row{display:flex; gap:10px}
+.upload-row .btn{flex:1}
+
+.lineitem{border:1px solid var(--border); border-radius:12px; padding:13px; background:var(--surface)}
+.lineitem + .lineitem{margin-top:10px}
+.lineitem .txt{font-weight:700; font-size:.92rem; margin-bottom:2px}
+.lineitem .meta{color:var(--muted); font-size:.82rem; margin-bottom:10px}
+
+#loginView{padding-top:14vh}
+.logo{font-weight:800; font-size:1.6rem; letter-spacing:-.02em; margin-bottom:4px}
+.logo .dot2{color:var(--accent)}
+.authtabs{display:flex; gap:6px; margin-bottom:16px; background:var(--surface-2); border-radius:11px; padding:4px}
+.authtabs button{flex:1; border:none; background:none; padding:9px; border-radius:8px; font-weight:700; font-size:.85rem; color:var(--muted); cursor:pointer; font-family:inherit}
+.authtabs button.active{background:var(--surface); color:var(--fg)}
+[hidden]{display:none!important}
+.demobar{position:fixed; top:0; left:0; right:0; z-index:99; background:var(--accent); color:var(--accent-ink);
+  text-align:center; font-size:.72rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+  padding:5px 0; padding-top:calc(5px + env(safe-area-inset-top,0px))}
+body{padding-top:28px}
+</style>
+
+<div class="demobar">Modo demo · datos de ejemplo</div>
+<div id="app">
+
+  <section id="loginView" class="view active" style="padding:14vh 0 40px">
+    <div class="logo">Ratio <span class="dot2">Hostelería</span></div>
+    <p class="lead">Control de escandallos, compras y ventas.</p>
+    <div class="authtabs">
+      <button id="tabIn" class="active" type="button">Entrar</button>
+      <button id="tabUp" type="button">Crear cuenta</button>
+    </div>
+    <form id="authForm" class="card stack" autocomplete="on">
+      <div>
+        <label for="authEmail">Correo</label>
+        <input id="authEmail" type="email" autocomplete="email" required>
+      </div>
+      <div>
+        <label for="authPass">Contraseña</label>
+        <input id="authPass" type="password" autocomplete="current-password" required minlength="6">
+      </div>
+      <button class="btn primary" type="submit" id="authSubmit">Entrar</button>
+      <div id="authMsg" class="lead" style="margin:0;color:var(--bad)" hidden></div>
+    </form>
+  </section>
+
+  <template id="shellTpl">
+    <header class="top">
+      <div class="brand">
+        <span class="dot" id="statusDot"></span>
+        <b id="negNombre">—</b>
+      </div>
+      <button class="iconbtn" id="logoutBtn" title="Salir" type="button">Salir</button>
+    </header>
+  </template>
+
+  <main id="main">
+
+    <section id="sinNegocioView" class="view">
+      <h1>Da de alta tu negocio</h1>
+      <p class="lead">Elige el negocio que vas a gestionar. Solo puede reclamarlo una vez un usuario; a partir de ahí es suyo.</p>
+      <div id="claimList" class="stack"></div>
+      <div class="card tight" style="margin-top:14px">
+        <div class="row between" style="margin-bottom:10px"><h2 style="margin:0">¿No está en la lista?</h2></div>
+        <form id="nuevoNegocioForm" class="row" style="gap:8px">
+          <input type="text" id="nuevoNegocioNombre" placeholder="Nombre del negocio" required style="flex:1">
+          <button class="btn primary sm" type="submit">Crear</button>
+        </form>
+      </div>
+    </section>
+
+    <section id="inicioView" class="view">
+      <h1>Hoy en <span id="inicioNeg"></span></h1>
+      <p class="lead" id="inicioFecha"></p>
+
+      <div class="card tight" id="pendientesCard" hidden>
+        <div class="row between">
+          <div>
+            <div style="font-weight:700" id="pendientesN"></div>
+            <div class="lead" style="margin:2px 0 0">documentos por revisar</div>
+          </div>
+          <button class="btn primary sm" id="irARevisar" type="button">Revisar</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Subidas de precio recientes</h2>
+        <div id="subidasList"><div class="empty">Cargando…</div></div>
+      </div>
+
+      <div class="card">
+        <h2>Ahorro cambiando de proveedor</h2>
+        <div id="ahorroList"><div class="empty">Cargando…</div></div>
+      </div>
+
+      <div class="card">
+        <h2>Conteo de esta semana</h2>
+        <div id="conteoList"><div class="empty">Cargando…</div></div>
+      </div>
+    </section>
+
+    <section id="subirView" class="view">
+      <h1>Subir documento</h1>
+      <p class="lead">Vale para albarán, factura, abono (nota de crédito) o ticket. Haz la foto plana y con buena luz; la IA lee proveedor, líneas y precios.</p>
+      <div class="camera-cta" id="dropZone">
+        <div class="ic">📷</div>
+        <div style="font-weight:700; margin-bottom:12px">Foto del documento de compra</div>
+        <div class="upload-row">
+          <button class="btn primary" id="btnCamara" type="button">Hacer foto</button>
+          <button class="btn" id="btnGaleria" type="button">Elegir archivo</button>
+        </div>
+      </div>
+      <input type="file" id="fileCamara" accept="image/*" capture="environment" hidden>
+      <input type="file" id="fileGaleria" accept="image/*" hidden>
+
+      <div id="subirEstado" class="card" hidden></div>
+      <div id="resolverBox"></div>
+    </section>
+
+    <section id="comprasView" class="view">
+      <h1>Compras</h1>
+      <p class="lead">Últimos albaranes, facturas y tickets registrados.</p>
+      <div id="comprasList"><div class="empty">Cargando…</div></div>
+      <div id="resolverBoxCompras"></div>
+    </section>
+
+    <section id="negocioView" class="view">
+      <h1 id="negTitulo">Negocio</h1>
+      <div class="card stack">
+        <div class="statline"><span class="k">Licencia</span><span class="v" id="negLicencia">—</span></div>
+        <div class="statline"><span class="k">Usuarios máx.</span><span class="v" id="negMaxUsuarios">—</span></div>
+        <div class="statline"><span class="k">Proveedores</span><span class="v" id="negProveedores">—</span></div>
+        <div class="statline"><span class="k">Productos</span><span class="v" id="negProductos">—</span></div>
+      </div>
+      <div class="card" id="otrosNegociosCard" hidden>
+        <h2>Cambiar de negocio</h2>
+        <div id="otrosNegocios" class="stack"></div>
+      </div>
+      <button class="btn danger" id="logoutBtn2" type="button" style="margin-top:4px">Cerrar sesión</button>
+    </section>
+
+  </main>
+
+  <nav class="tabs" id="tabs" hidden>
+    <div class="inner">
+      <button data-view="inicio" class="active" type="button"><span class="ic">◆</span>Inicio</button>
+      <button data-view="subir" type="button"><span class="ic">📷</span>Subir</button>
+      <button data-view="compras" type="button"><span class="ic">▤</span>Compras</button>
+      <button data-view="negocio" type="button"><span class="ic">●</span>Negocio</button>
+    </div>
+  </nav>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- MODO DEMO: datos de ejemplo, sin conexión real a Supabase ----------
+  function wait(v, ms){ return new Promise(function(res){ setTimeout(function(){ res(v); }, ms==null?180:ms); }); }
+
+  var DEMO = {
+    negocio: { id: "demo-negocio", nombre: "Bar de Pruebas (demo)", licencia_estado: "activa", max_usuarios: 3 },
+    pendientes: 2,
+    subidas: [
+      { nombre: "Gambas blancas congeladas", subida_pct: 14, impacto_90d_eur: 186.40 },
+      { nombre: "Jamón ibérico de bellota", subida_pct: 9, impacto_90d_eur: 142.10 },
+      { nombre: "Aceite de oliva virgen extra", subida_pct: 6, impacto_90d_eur: 58.70 }
+    ],
+    ahorro: [
+      { nombre: "Cerveza de barril", ahorro_pct: 11 },
+      { nombre: "Refrescos (lata)", ahorro_pct: 7 }
+    ],
+    conteo: [
+      { nombre: "Gambas blancas", zona: "Cámara" },
+      { nombre: "Jamón ibérico", zona: "Cámara" },
+      { nombre: "Patatas", zona: "Almacén" },
+      { nombre: "Aceite de oliva", zona: "Almacén" },
+      { nombre: "Cerveza de barril", zona: "Barra" }
+    ],
+    proveedoresCount: 4,
+    productosCount: 29,
+    proveedores: [
+      { id: "p1", nombre: "Distribuciones Hosteleras Granada SL" },
+      { id: "p2", nombre: "Pescados Costa Tropical" },
+      { id: "p3", nombre: "Carnes Sierra Nevada" },
+      { id: "p4", nombre: "Bebidas Alpujarra" }
+    ],
+    compras: [
+      { id: "c1", numero: "A-2026-0931", fecha: "2026-10-15", total: 612.40, estado: "confirmada", tipo_documento: "albaran", proveedores: { nombre: "Distribuciones Hosteleras Granada SL" } },
+      { id: "c2", numero: "A-2026-0944", fecha: "2026-10-22", total: 284.95, estado: "revisar", tipo_documento: "albaran", proveedores: { nombre: "Pescados Costa Tropical" } },
+      { id: "c3", numero: "F-2026-0118", fecha: "2026-10-24", total: 97.30, estado: "pendiente", tipo_documento: "factura", proveedores: null }
+    ],
+    compraLineas: {
+      c2: [
+        { id: "l1", texto_original: "GAMBA BLANCA CONG 2KG", unidad_compra: "kg", cantidad: 2, precio_unitario: 14.9, codigo: "GB-2K" },
+        { id: "l2", texto_original: "LIMON 1A KG", unidad_compra: "kg", cantidad: 5, precio_unitario: 1.3, codigo: null }
+      ]
+    }
+  };
+
+  function mockBuilder(table){
+    var q = { table: table, filters: {}, single: false, count: null };
+    var b = {
+      select: function(cols, opts){ if (opts && opts.count) q.count = opts.count; return b; },
+      eq: function(k, v){ q.filters[k] = v; return b; },
+      is: function(k, v){ q.filters[k] = v; return b; },
+      order: function(){ return b; },
+      limit: function(){ return b; },
+      single: function(){ q.single = true; return b; },
+      then: function(onRes, onErr){ return resolveMock(q).then(onRes, onErr); }
+    };
+    return b;
+  }
+
+  function resolveMock(q){
+    switch(q.table){
+      case "negocios":
+        return wait({ data: [DEMO.negocio], error: null });
+      case "compras":
+        if (q.count) return wait({ data: null, error: null, count: DEMO.pendientes });
+        if (q.single) return wait({ data: DEMO.compras.find(function(c){ return c.id===q.filters.id; }) || null, error: null });
+        return wait({ data: DEMO.compras, error: null });
+      case "compra_lineas":
+        return wait({ data: DEMO.compraLineas[q.filters.compra_id] || [], error: null });
+      case "v_impacto_subidas":
+        return wait({ data: DEMO.subidas, error: null });
+      case "v_ahorro_proveedor":
+        return wait({ data: DEMO.ahorro, error: null });
+      case "proveedores":
+        if (q.count) return wait({ data: null, error: null, count: DEMO.proveedoresCount });
+        return wait({ data: DEMO.proveedores, error: null });
+      case "productos":
+        if (q.count) return wait({ data: null, error: null, count: DEMO.productosCount });
+        if (q.single) return wait({ data: { unidad_base: "kg" }, error: null });
+        return wait({ data: [], error: null });
+      default:
+        return wait({ data: [], error: null });
+    }
+  }
+
+  var sb = {
+    auth: {
+      getSession: function(){ return wait({ data: { session: { user: { id: "demo-user" } } } }); },
+      onAuthStateChange: function(cb){ setTimeout(function(){ cb("SIGNED_IN", { user: { id: "demo-user" } }); }, 30); return { data: { subscription: { unsubscribe: function(){} } } }; },
+      signInWithPassword: function(){ return wait({ data: { session: {} }, error: null }); },
+      signUp: function(){ return wait({ data: { session: {} }, error: null }); },
+      signOut: function(){ location.reload(); }
+    },
+    from: mockBuilder,
+    rpc: function(name){
+      if (name === "inventario_sugerido") return wait({ data: DEMO.conteo, error: null });
+      return wait({ data: null, error: null });
+    },
+    storage: { from: function(){ return { upload: function(){ return wait({ data: {}, error: null }); } }; } },
+    functions: { invoke: function(){ return wait({ data: { estado: "ilegible", mensaje: "Modo demo: la lectura de documentos no está activada en esta vista de prueba." }, error: null }); } }
+  };
+
+  var state = { session:null, negocios:[], negocioId:null, view:"inicio" };
+
+  function $(id){ return document.getElementById(id); }
+  function qs(sel, root){ return (root||document).querySelector(sel); }
+  function qsa(sel, root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+  function eur(n){ return n==null ? "—" : Number(n).toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" €"; }
+  function fecha(d){ if(!d) return "—"; return new Date(d).toLocaleDateString("es-ES",{day:"2-digit",month:"short"}); }
+
+  var toastBox = null;
+  function toast(msg, kind){
+    if (toastBox) toastBox.remove();
+    var el = document.createElement("div");
+    el.className = "toast" + (kind ? " "+kind : "");
+    el.textContent = msg;
+    document.body.appendChild(el);
+    toastBox = el;
+    setTimeout(function(){ if (el===toastBox){ el.remove(); toastBox=null; } }, 4200);
+  }
+
+  function setLoading(btn, loading, labelLoading, labelNormal){
+    btn.disabled = loading;
+    btn.textContent = loading ? (labelLoading||"Un momento…") : (labelNormal||btn.dataset.label||btn.textContent);
+  }
+
+  // ---------- AUTH ----------
+  var authMode = "in";
+  $("tabIn").addEventListener("click", function(){ authMode="in"; $("tabIn").classList.add("active"); $("tabUp").classList.remove("active"); $("authSubmit").textContent="Entrar"; });
+  $("tabUp").addEventListener("click", function(){ authMode="up"; $("tabUp").classList.add("active"); $("tabIn").classList.remove("active"); $("authSubmit").textContent="Crear cuenta"; });
+
+  $("authForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    var email = $("authEmail").value.trim();
+    var pass = $("authPass").value;
+    var btn = $("authSubmit");
+    var msg = $("authMsg");
+    msg.hidden = true;
+    setLoading(btn, true, "Un momento…");
+    var p = authMode==="in"
+      ? sb.auth.signInWithPassword({ email: email, password: pass })
+      : sb.auth.signUp({ email: email, password: pass });
+    p.then(function(res){
+      setLoading(btn, false, null, authMode==="in"?"Entrar":"Crear cuenta");
+      if (res.error){ msg.textContent = traducirError(res.error.message); msg.hidden=false; return; }
+      if (authMode==="up" && !res.data.session){
+        msg.style.color = "var(--good)";
+        msg.textContent = "Cuenta creada. Revisa tu correo para confirmar y luego entra.";
+        msg.hidden = false;
+      }
+    });
+  });
+
+  function traducirError(m){
+    if (/already registered|already exists/i.test(m)) return "Ese correo ya tiene cuenta. Prueba a entrar.";
+    if (/invalid login/i.test(m)) return "Correo o contraseña incorrectos.";
+    if (/password.*(6|least)/i.test(m)) return "La contraseña debe tener al menos 6 caracteres.";
+    return m;
+  }
+
+  function logout(){ sb.auth.signOut(); }
+  $("logoutBtn2").addEventListener("click", logout);
+
+  sb.auth.onAuthStateChange(function(_evt, session){
+    state.session = session;
+    if (session) boot(); else showLogin();
+  });
+
+  function showLogin(){
+    $("loginView").classList.add("active");
+    qsa(".view").forEach(function(v){ if (v.id!=="loginView") v.classList.remove("active"); });
+    $("tabs").hidden = true;
+    var hdr = qs("header.top"); if (hdr) hdr.remove();
+  }
+
+  // ---------- SHELL / BOOT ----------
+  function ensureShell(){
+    if (qs("header.top")) return;
+    var tpl = $("shellTpl").content.cloneNode(true);
+    $("app").insertBefore(tpl, $("main"));
+    $("logoutBtn").addEventListener("click", logout);
+  }
+
+  function boot(){
+    ensureShell();
+    $("loginView").classList.remove("active");
+    $("tabs").hidden = false;
+    cargarNegocios();
+  }
+
+  function cargarNegocios(){
+    sb.from("negocios").select("id,nombre,licencia_estado,max_usuarios").then(function(res){
+      if (res.error){ toast("No se pudieron cargar los negocios.", "err"); return; }
+      state.negocios = res.data || [];
+      if (!state.negocios.length){ mostrarAltaNegocio(); return; }
+      var guardado = localStorage.getItem("escandallo.negocioId");
+      var elegido = state.negocios.find(function(n){ return n.id===guardado; }) || state.negocios[0];
+      state.negocioId = elegido.id;
+      $("negNombre").textContent = elegido.nombre;
+      $("statusDot").classList.remove("off");
+      irA("inicio");
+      renderOtrosNegocios();
+    });
+  }
+
+  function mostrarAltaNegocio(){
+    $("negNombre").textContent = "Sin negocio";
+    $("statusDot").classList.add("off");
+    $("tabs").hidden = true;
+    activarVista("sinNegocioView");
+    sb.rpc("negocios_sin_propietario").then(function(res){
+      var box = $("claimList");
+      if (res.error){ box.innerHTML = '<div class="empty">No se pudo cargar la lista.</div>'; return; }
+      var libres = res.data || [];
+      if (!libres.length){ box.innerHTML = '<div class="empty">No hay negocios en espera. Crea el tuyo abajo.</div>'; return; }
+      box.innerHTML = libres.map(function(n){
+        return '<div class="card tight row between"><b>'+esc(n.nombre)+'</b>' +
+          '<button class="btn primary sm" data-claim="'+n.id+'" type="button">Reclamar</button></div>';
+      }).join("");
+      qsa("[data-claim]", box).forEach(function(b){
+        b.addEventListener("click", function(){
+          setLoading(b, true, "Reclamando…");
+          sb.rpc("reclamar_negocio", { p_negocio: b.dataset.claim }).then(function(r){
+            if (r.error){ toast(r.error.message, "err"); setLoading(b,false,null,"Reclamar"); return; }
+            toast("Negocio reclamado.", "ok");
+            cargarNegocios();
+          });
+        });
+      });
+    });
+  }
+
+  $("nuevoNegocioForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    var nombre = $("nuevoNegocioNombre").value.trim();
+    if (!nombre) return;
+    var btn = qs("button[type=submit]", this);
+    setLoading(btn, true, "Creando…");
+    // Crear negocio: usamos una función dedicada para que quede como propietario desde el alta.
+    sb.rpc("crear_y_reclamar_negocio", { p_nombre: nombre }).then(function(r){
+      setLoading(btn, false, null, "Crear");
+      if (r.error){ toast(r.error.message, "err"); return; }
+      toast("Negocio creado.", "ok");
+      cargarNegocios();
+    });
+  });
+
+  function renderOtrosNegocios(){
+    var box = $("otrosNegocios"), card = $("otrosNegociosCard");
+    if (state.negocios.length < 2){ card.hidden = true; return; }
+    card.hidden = false;
+    box.innerHTML = state.negocios.map(function(n){
+      var activo = n.id===state.negocioId;
+      return '<div class="row between card tight" style="margin-bottom:0">' +
+        '<b>'+esc(n.nombre)+(activo?' <span class="chip pendiente">actual</span>':'')+'</b>' +
+        (activo?'':'<button class="btn sm" data-sw="'+n.id+'" type="button">Entrar</button>') + '</div>';
+    }).join("");
+    qsa("[data-sw]", box).forEach(function(b){
+      b.addEventListener("click", function(){
+        state.negocioId = b.dataset.sw;
+        localStorage.setItem("escandallo.negocioId", state.negocioId);
+        location.reload();
+      });
+    });
+  }
+
+  // ---------- NAV ----------
+  qsa("nav.tabs button").forEach(function(b){
+    b.addEventListener("click", function(){ irA(b.dataset.view); });
+  });
+  $("irARevisar").addEventListener("click", function(){ irA("compras"); });
+
+  function activarVista(id){
+    qsa(".view").forEach(function(v){ v.classList.remove("active"); });
+    $(id).classList.add("active");
+  }
+
+  function irA(view){
+    state.view = view;
+    qsa("nav.tabs button").forEach(function(b){ b.classList.toggle("active", b.dataset.view===view); });
+    activarVista(view+"View");
+    if (view==="inicio") cargarInicio();
+    if (view==="compras") cargarCompras();
+    if (view==="negocio") cargarNegocioInfo();
+  }
+
+  // ---------- INICIO ----------
+  function cargarInicio(){
+    var neg = state.negocios.find(function(n){ return n.id===state.negocioId; });
+    $("inicioNeg").textContent = neg ? neg.nombre : "";
+    $("inicioFecha").textContent = new Date().toLocaleDateString("es-ES",{weekday:"long", day:"numeric", month:"long"});
+
+    sb.from("compras").select("id",{count:"exact",head:true}).eq("negocio_id", state.negocioId).eq("estado","revisar").then(function(r){
+      var n = r.count || 0;
+      $("pendientesCard").hidden = n===0;
+      $("pendientesN").textContent = n + (n===1 ? " documento" : " documentos");
+    });
+
+    sb.from("v_impacto_subidas").select("*").eq("negocio_id", state.negocioId).order("impacto_90d_eur",{ascending:false}).limit(5)
+      .then(function(r){
+        var el = $("subidasList");
+        var rows = r.data || [];
+        if (r.error || !rows.length){ el.innerHTML = '<div class="empty">Sin datos todavía.</div>'; return; }
+        el.innerHTML = rows.map(function(x){
+          return '<div class="statline"><span class="k">'+esc(x.nombre)+'</span>' +
+            '<span class="v up">+'+Number(x.subida_pct).toFixed(0)+'% · '+eur(x.impacto_90d_eur)+'</span></div>';
+        }).join("");
+      });
+
+    sb.from("v_ahorro_proveedor").select("*").eq("negocio_id", state.negocioId).order("ahorro_pct",{ascending:false}).limit(5)
+      .then(function(r){
+        var el = $("ahorroList");
+        var rows = r.data || [];
+        if (r.error || !rows.length){ el.innerHTML = '<div class="empty">Sin datos todavía.</div>'; return; }
+        el.innerHTML = rows.map(function(x){
+          return '<div class="statline"><span class="k">'+esc(x.nombre)+'</span>' +
+            '<span class="v down">-'+Number(x.ahorro_pct).toFixed(0)+'%</span></div>';
+        }).join("");
+      });
+
+    sb.rpc("inventario_sugerido", { p_negocio: state.negocioId, p_frecuencia: "semanal" }).then(function(r){
+      var el = $("conteoList");
+      var rows = (r.data || []).slice(0,8);
+      if (r.error || !rows.length){ el.innerHTML = '<div class="empty">Nada que contar esta semana.</div>'; return; }
+      el.innerHTML = rows.map(function(x){
+        return '<div class="statline"><span class="k">'+esc(x.nombre)+'</span><span class="v" style="color:var(--muted)">'+esc(x.zona||x.familia||"")+'</span></div>';
+      }).join("");
+    });
+  }
+
+  // ---------- SUBIR ----------
+  $("btnCamara").addEventListener("click", function(){ $("fileCamara").click(); });
+  $("btnGaleria").addEventListener("click", function(){ $("fileGaleria").click(); });
+  $("fileCamara").addEventListener("change", function(e){ if (e.target.files[0]) subirFoto(e.target.files[0]); e.target.value=""; });
+  $("fileGaleria").addEventListener("change", function(e){ if (e.target.files[0]) subirFoto(e.target.files[0]); e.target.value=""; });
+
+  function subirFoto(file, forzar){
+    var estado = $("subirEstado");
+    estado.hidden = false;
+    estado.innerHTML = '<div class="row"><span class="spin"></span><span>Subiendo foto…</span></div>';
+    $("resolverBox").innerHTML = "";
+
+    var path = state.negocioId + "/" + Date.now() + "-" + file.name.replace(/[^a-zA-Z0-9.\-_]/g,"_");
+    sb.storage.from("albaranes").upload(path, file, { contentType: file.type || "image/jpeg" }).then(function(up){
+      if (up.error){ estado.innerHTML = '<div style="color:var(--bad)">No se pudo subir la foto: '+esc(up.error.message)+'</div>'; return; }
+      estado.innerHTML = '<div class="row"><span class="spin"></span><span>Leyendo el documento con IA…</span></div>';
+      return sb.functions.invoke("leer-albaran", { body: { negocio_id: state.negocioId, imagen_path: path, forzar: !!forzar } })
+        .then(function(res){
+          var data = res.data, err = res.error;
+          if (err){ estado.innerHTML = '<div style="color:var(--bad)">Error leyendo el documento. Inténtalo otra vez.</div>'; return; }
+          if (data && data.error){ estado.innerHTML = '<div style="color:var(--bad)">'+esc(data.error)+'</div>'; return; }
+          if (data.estado === "ilegible"){
+            estado.innerHTML = '<div style="color:var(--warn)">'+esc(data.mensaje)+'</div>';
+            return;
+          }
+          if (data.estado === "duplicado"){
+            estado.innerHTML = '<div><span class="chip dup">Duplicado</span> Esta foto ya se procesó antes.</div>';
+            return;
+          }
+          if (data.estado === "posible_duplicado"){
+            estado.innerHTML = '<div style="margin-bottom:10px"><span class="chip dup">Posible duplicado</span> Ya hay una compra parecida.</div>' +
+              '<button class="btn sm" id="forzarBtn" type="button">Subir igualmente</button>';
+            $("forzarBtn").addEventListener("click", function(){ subirFoto(file, true); });
+            return;
+          }
+          estado.innerHTML = '<div style="color:var(--good)">Documento guardado. '+
+            (data.estado==="lista_para_confirmar" ? "Todo reconocido, lista para confirmar." : "Faltan algunos datos por confirmar.") + '</div>';
+          mostrarResolver(data.compra_id, $("resolverBox"));
+        });
+    });
+  }
+
+  // ---------- RESOLVER PENDIENTES (reutilizado en Subir y en Compras) ----------
+  function mostrarResolver(compraId, contenedor){
+    contenedor.innerHTML = '<div class="empty"><span class="spin"></span></div>';
+    Promise.all([
+      sb.from("compras").select("id,proveedor_id,numero,fecha,total,estado").eq("id", compraId).single(),
+      sb.from("compra_lineas").select("id,texto_original,unidad_compra,cantidad,precio_unitario,codigo").eq("compra_id", compraId).eq("computa", true).is("producto_id", null)
+    ]).then(function(res){
+      var compra = res[0].data, lineasPend = res[1].data || [];
+      if (!compra){ contenedor.innerHTML = ""; return; }
+
+      var html = "";
+      if (!compra.proveedor_id){
+        html += renderProveedorForm(compra);
+      }
+      // una pregunta por texto+unidad distintos
+      var vistos = {}, unicas = [];
+      lineasPend.forEach(function(l){
+        var k = (l.texto_original||"").toLowerCase()+"|"+(l.unidad_compra||"").toLowerCase();
+        if (vistos[k]) return; vistos[k]=true; unicas.push(l);
+      });
+      unicas.forEach(function(l){ html += renderProductoForm(l); });
+
+      if (!html){
+        html = '<div class="card row between">' +
+          '<span style="color:var(--good)">Todo reconocido.</span>' +
+          (compra.estado==="confirmada" ? '<span class="chip confirmada">Confirmada</span>' :
+            '<button class="btn primary sm" id="confirmarBtn" type="button">Confirmar compra</button>') +
+          '</div>';
+      }
+      contenedor.innerHTML = html;
+
+      var cb = $("confirmarBtn");
+      if (cb) cb.addEventListener("click", function(){
+        setLoading(cb, true, "Confirmando…");
+        sb.rpc("confirmar_compra", { p_compra: compraId }).then(function(r){
+          if (r.error){ toast(r.error.message, "err"); setLoading(cb,false,null,"Confirmar compra"); return; }
+          toast("Compra confirmada.", "ok");
+          mostrarResolver(compraId, contenedor);
+          cargarCompras();
+        });
+      });
+
+      wireProveedorForm(contenedor, compra, function(){ mostrarResolver(compraId, contenedor); });
+      wireProductoForm(contenedor, compra, function(){ mostrarResolver(compraId, contenedor); });
+    });
+  }
+
+  function renderProveedorForm(compra){
+    return '<div class="lineitem" data-prov-form>' +
+      '<div class="txt">Proveedor sin identificar</div>' +
+      '<div class="meta">Elige uno existente o escribe el nombre para crearlo.</div>' +
+      '<select data-prov-select style="margin-bottom:8px"><option value="">— crear nuevo —</option></select>' +
+      '<input type="text" data-prov-nuevo placeholder="Nombre del proveedor" style="margin-bottom:8px">' +
+      '<button class="btn primary sm" data-prov-guardar type="button">Guardar proveedor</button>' +
+      '</div>';
+  }
+
+  function wireProveedorForm(root, compra, onDone){
+    var form = qs("[data-prov-form]", root);
+    if (!form) return;
+    var select = qs("[data-prov-select]", form);
+    sb.from("proveedores").select("id,nombre").eq("negocio_id", state.negocioId).order("nombre").then(function(r){
+      (r.data||[]).forEach(function(p){
+        var o = document.createElement("option"); o.value = p.id; o.textContent = p.nombre; select.appendChild(o);
+      });
+    });
+    qs("[data-prov-guardar]", form).addEventListener("click", function(){
+      var btn = this;
+      var provId = select.value || null;
+      var nuevo = qs("[data-prov-nuevo]", form).value.trim();
+      if (!provId && !nuevo){ toast("Elige un proveedor o escribe uno nuevo.", "err"); return; }
+      var texto = provId ? select.options[select.selectedIndex].textContent : nuevo;
+      setLoading(btn, true, "Guardando…");
+      sb.rpc("resolver_proveedor", { p_compra: compra.id, p_texto_documento: texto, p_proveedor: provId, p_nombre_nuevo: provId?null:nuevo, p_nif: null })
+        .then(function(r){
+          if (r.error){ toast(r.error.message, "err"); setLoading(btn,false,null,"Guardar proveedor"); return; }
+          toast("Proveedor guardado.", "ok");
+          onDone();
+        });
+    });
+  }
+
+  function renderProductoForm(l){
+    return '<div class="lineitem" data-prod-form data-linea="'+l.id+'" data-texto="'+esc(l.texto_original)+'">' +
+      '<div class="txt">'+esc(l.texto_original)+'</div>' +
+      '<div class="meta">'+l.cantidad+' '+esc(l.unidad_compra)+' · '+eur(l.precio_unitario)+'/'+esc(l.unidad_compra)+'</div>' +
+      '<div class="sugs" data-sugs><div class="empty" style="padding:4px 0">Buscando parecidos…</div></div>' +
+      '<div data-prod-detalle hidden>' +
+        '<div class="grid2" style="margin-bottom:8px">' +
+          '<div><label>Unidad base</label><select data-unidad-base><option value="ud">unidad</option><option value="kg">kg</option><option value="g">g</option><option value="l">litro</option><option value="ml">ml</option></select></div>' +
+          '<div><label>Equivale a</label><input type="number" step="any" min="0.0001" data-factor value="1"></div>' +
+        '</div>' +
+        '<input type="text" data-prod-nuevo placeholder="Nombre del producto" style="margin-bottom:8px">' +
+      '</div>' +
+      '<button class="btn primary sm" data-prod-guardar type="button" style="margin-top:4px">Guardar</button>' +
+      '</div>';
+  }
+
+  function wireProductoForm(root, compra, onDone){
+    qsa("[data-prod-form]", root).forEach(function(form){
+      var lineaId = form.dataset.linea, texto = form.dataset.texto;
+      var sugsBox = qs("[data-sugs]", form);
+      var detalle = qs("[data-prod-detalle]", form);
+      var nuevoInput = qs("[data-prod-nuevo]", form);
+      var factorInput = qs("[data-factor]", form);
+      var unidadSelect = qs("[data-unidad-base]", form);
+      var elegido = null;
+
+      sb.rpc("sugerir_productos", { p_negocio: state.negocioId, p_texto: texto }).then(function(r){
+        var rows = (r.data||[]).slice(0,4);
+        if (!rows.length){ sugsBox.innerHTML = ""; detalle.hidden = false; nuevoInput.value = texto; return; }
+        sugsBox.innerHTML = rows.map(function(s){
+          return '<button type="button" class="sug" data-pick="'+s.producto_id+'" data-nombre="'+esc(s.nombre)+'">'+esc(s.nombre)+
+            '<small>'+Math.round(s.similitud*100)+'% parecido</small></button>';
+        }).join("") + '<button type="button" class="sug" data-pick="nuevo">+ Es nuevo</button>';
+        qsa("[data-pick]", sugsBox).forEach(function(b){
+          b.addEventListener("click", function(){
+            qsa(".sug", sugsBox).forEach(function(x){ x.classList.remove("active"); });
+            b.classList.add("active");
+            if (b.dataset.pick === "nuevo"){
+              elegido = null; detalle.hidden = false; nuevoInput.hidden = false; nuevoInput.value = texto;
+            } else {
+              elegido = b.dataset.pick; detalle.hidden = false; nuevoInput.hidden = true;
+              sb.from("productos").select("unidad_base").eq("id", elegido).single().then(function(pr){
+                if (pr.data) unidadSelect.value = pr.data.unidad_base;
+              });
+            }
+          });
+        });
+      });
+
+      qs("[data-prod-guardar]", form).addEventListener("click", function(){
+        var btn = this;
+        var factor = parseFloat(factorInput.value);
+        if (!factor || factor<=0){ toast("Indica a cuánto equivale.", "err"); return; }
+        var nombreNuevo = elegido ? null : (nuevoInput.value.trim() || texto);
+        setLoading(btn, true, "Guardando…");
+        sb.rpc("resolver_linea", { p_linea: lineaId, p_factor_a_base: factor, p_producto: elegido, p_nombre_nuevo: nombreNuevo, p_unidad_base: unidadSelect.value })
+          .then(function(r){
+            if (r.error){ toast(r.error.message, "err"); setLoading(btn,false,null,"Guardar"); return; }
+            toast("Producto guardado.", "ok");
+            onDone();
+          });
+      });
+    });
+  }
+
+  // ---------- COMPRAS ----------
+  function cargarCompras(){
+    var el = $("comprasList");
+    $("resolverBoxCompras").innerHTML = "";
+    sb.from("compras").select("id,numero,fecha,total,estado,tipo_documento,proveedores(nombre)")
+      .eq("negocio_id", state.negocioId).order("creado_en",{ascending:false}).limit(30)
+      .then(function(r){
+        var rows = r.data || [];
+        if (r.error){ el.innerHTML = '<div class="empty">No se pudieron cargar.</div>'; return; }
+        if (!rows.length){ el.innerHTML = '<div class="empty">Aún no hay compras. Sube tu primer documento.</div>'; return; }
+        el.innerHTML = rows.map(function(c){
+          var prov = c.proveedores ? c.proveedores.nombre : "Sin proveedor";
+          return '<div class="lineitem" data-compra="'+c.id+'" style="cursor:pointer">' +
+            '<div class="row between"><span class="txt">'+esc(prov)+'</span><span class="chip '+c.estado+'">'+c.estado+'</span></div>' +
+            '<div class="meta">'+fecha(c.fecha)+' · '+esc(c.numero||c.tipo_documento)+' · '+eur(c.total)+'</div>' +
+            '</div>';
+        }).join("");
+        qsa("[data-compra]", el).forEach(function(card){
+          card.addEventListener("click", function(){
+            qsa("[data-compra]", el).forEach(function(c){ c.style.outline=""; });
+            card.style.outline = "2px solid var(--focus)";
+            mostrarResolver(card.dataset.compra, $("resolverBoxCompras"));
+            $("resolverBoxCompras").scrollIntoView({behavior:"smooth", block:"nearest"});
+          });
+        });
+      });
+  }
+
+  // ---------- NEGOCIO ----------
+  function cargarNegocioInfo(){
+    var neg = state.negocios.find(function(n){ return n.id===state.negocioId; });
+    if (!neg) return;
+    $("negTitulo").textContent = neg.nombre;
+    $("negLicencia").textContent = neg.licencia_estado;
+    $("negMaxUsuarios").textContent = neg.max_usuarios;
+    sb.from("proveedores").select("id",{count:"exact",head:true}).eq("negocio_id", state.negocioId).then(function(r){ $("negProveedores").textContent = r.count||0; });
+    sb.from("productos").select("id",{count:"exact",head:true}).eq("negocio_id", state.negocioId).then(function(r){ $("negProductos").textContent = r.count||0; });
+    renderOtrosNegocios();
+  }
+
+  // ---------- START ----------
+  sb.auth.getSession().then(function(r){
+    state.session = r.data.session;
+    if (state.session) boot(); else showLogin();
+  });
+
+})();
+</script>
+
+</body></html>
