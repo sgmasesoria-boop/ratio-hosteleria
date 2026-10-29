@@ -211,6 +211,10 @@ body{padding-top:28px}
 .c-good{color:var(--good)}
 
 .listhead{font-size:.78rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; margin:14px 0 8px}
+
+.elink{color:var(--focus); font-weight:700; cursor:pointer; text-decoration:underline; text-underline-offset:2px}
+.elink:hover{opacity:.8}
+.readonly-note{display:flex; align-items:center; gap:6px; font-size:.82rem; color:var(--muted); margin:0 0 14px}
 </style>
 
 <div class="demobar">Modo demo · datos de ejemplo</div>
@@ -296,13 +300,13 @@ body{padding-top:28px}
 
     <section id="ventasView" class="view">
       <h1>Ventas</h1>
-      <p class="lead">Carga el ticket Z, el resumen de ventas, o mételas a mano. Abajo verás solo lo pendiente de revisar; usa el buscador para encontrar cualquier venta ya confirmada.</p>
+      <p class="lead">Sube la cinta de control detallada por ticket (no vale un resumen ni el Z), o mételas a mano. Así sabemos exactamente qué se está vendiendo. Abajo verás solo lo pendiente de revisar; usa el buscador para encontrar cualquier venta ya confirmada.</p>
       <button class="btn ghost sm" id="btnInformesVentas" type="button" style="width:auto; margin:0 0 12px">📊 Ver informes de ventas</button>
 
       <div class="camera-cta" id="dropZoneVentas">
         <div class="ic">📷</div>
-        <div style="font-weight:700; margin-bottom:6px">Ticket Z o resumen de ventas</div>
-        <div class="lead" style="margin:0 0 12px">Foto o cualquier archivo (PDF, Excel, CSV…). En esta demo la lectura automática está simulada: verás un aviso. Para probar la pantalla de revisar usa un documento de la lista de abajo, o mete la venta a mano.</div>
+        <div style="font-weight:700; margin-bottom:6px">Cinta de control detallada por ticket</div>
+        <div class="lead" style="margin:0 0 12px">Foto o cualquier archivo (PDF, Excel, CSV…) con el detalle línea a línea de cada ticket — no sirve un resumen ni un Z. En esta demo la lectura automática está simulada: verás un aviso. Para probar la pantalla de revisar usa un documento de la lista de abajo, o mete la venta a mano.</div>
         <div class="upload-row">
           <button class="btn primary" id="btnCamaraVenta" type="button">Hacer foto</button>
           <button class="btn" id="btnGaleriaVenta" type="button">Subir archivo</button>
@@ -317,7 +321,7 @@ body{padding-top:28px}
 
       <div class="searchbox">
         <span>Buscar venta</span>
-        <div class="searchbox-input"><span class="ic">🔍</span><input type="text" id="ventasBuscar" placeholder="Número de ticket…"></div>
+        <div class="searchbox-input"><span class="ic">🔍</span><input type="text" id="ventasBuscar" placeholder="Ticket o fecha (AAAA-MM-DD)…"></div>
       </div>
       <div class="listhead" id="ventasListHead">Pendiente de revisar</div>
       <div id="ventasList"><div class="empty">Cargando…</div></div>
@@ -350,7 +354,6 @@ body{padding-top:28px}
         <h2>Almacén</h2>
         <div class="replist">
           <button class="replink" type="button" data-informe="mov_familia"><span>Movimiento por familia</span><span class="arrow">›</span></button>
-          <button class="replink" type="button" data-informe="mov_proveedor"><span>Movimiento por proveedor</span><span class="arrow">›</span></button>
         </div>
       </div>
 
@@ -442,9 +445,9 @@ body{padding-top:28px}
     ],
     movimientos: {
       "Gambas blancas": [
-        { fecha: "2026-10-15", tipo: "entrada", cantidad: 4, origen: "Compra · Distribuciones Hosteleras Granada SL" },
+        { fecha: "2026-10-15", tipo: "entrada", cantidad: 4, origen: "Compra · Distribuciones Hosteleras Granada SL", origenCompraId: "c1" },
         { fecha: "2026-10-18", tipo: "salida", cantidad: 1.5, origen: "Venta · Ticket Z" },
-        { fecha: "2026-10-22", tipo: "entrada", cantidad: 2, origen: "Compra · Pescados Costa Tropical" },
+        { fecha: "2026-10-22", tipo: "entrada", cantidad: 2, origen: "Compra · Pescados Costa Tropical", origenCompraId: "c2" },
         { fecha: "2026-10-26", tipo: "salida", cantidad: 1, origen: "Venta · Ticket Z" }
       ],
       "Jamón ibérico": [
@@ -452,11 +455,11 @@ body{padding-top:28px}
         { fecha: "2026-10-19", tipo: "salida", cantidad: 0.8, origen: "Venta · Ticket Z" }
       ],
       "Patatas": [
-        { fecha: "2026-10-15", tipo: "entrada", cantidad: 25, origen: "Compra · Distribuciones Hosteleras Granada SL" },
+        { fecha: "2026-10-15", tipo: "entrada", cantidad: 25, origen: "Compra · Distribuciones Hosteleras Granada SL", origenCompraId: "c1" },
         { fecha: "2026-10-20", tipo: "salida", cantidad: 9, origen: "Venta · Ticket Z" }
       ],
       "Aceite de oliva": [
-        { fecha: "2026-10-15", tipo: "entrada", cantidad: 10, origen: "Compra · Distribuciones Hosteleras Granada SL" }
+        { fecha: "2026-10-15", tipo: "entrada", cantidad: 10, origen: "Compra · Distribuciones Hosteleras Granada SL", origenCompraId: "c1" }
       ],
       "Cerveza de barril": [
         { fecha: "2026-10-15", tipo: "entrada", cantidad: 2, origen: "Compra · Bebidas Alpujarra" },
@@ -476,11 +479,16 @@ body{padding-top:28px}
       { id: "pl2", nombre: "Ensaladilla Rusa" }
     ],
     compras: [
-      { id: "c1", numero: "A-2026-0931", fecha: "2026-10-15", total: 612.40, estado: "confirmada", tipo_documento: "albaran", proveedores: { nombre: "Distribuciones Hosteleras Granada SL" } },
+      { id: "c1", numero: "A-2026-0931", fecha: "2026-10-15", total: 612.40, estado: "confirmada", tipo_documento: "albaran", proveedor_id: "p1", proveedores: { nombre: "Distribuciones Hosteleras Granada SL" } },
       { id: "c2", numero: "A-2026-0944", fecha: "2026-10-22", total: 284.95, estado: "revisar", tipo_documento: "albaran", proveedor_id: "p2", proveedores: { nombre: "Pescados Costa Tropical" } },
       { id: "c3", numero: "F-2026-0118", fecha: "2026-10-24", total: 97.30, estado: "pendiente", tipo_documento: "factura", proveedores: null }
     ],
     compraLineas: {
+      c1: [
+        { id: "l3", producto_id: "i1", nombre: "Gambas blancas", unidad_compra: "kg", cantidad: 4, precio_unitario: 13.10 },
+        { id: "l4", producto_id: "i3", nombre: "Patatas", unidad_compra: "kg", cantidad: 25, precio_unitario: 1.10 },
+        { id: "l5", producto_id: "i4", nombre: "Aceite de oliva", unidad_compra: "l", cantidad: 10, precio_unitario: 4.10 }
+      ],
       c2: [
         { id: "l1", texto_original: "GAMBA BLANCA CONG 2KG", unidad_compra: "kg", cantidad: 2, precio_unitario: 14.9, codigo: "GB-2K" },
         { id: "l2", texto_original: "LIMON 1A KG", unidad_compra: "kg", cantidad: 5, precio_unitario: 1.3, codigo: null }
@@ -491,6 +499,11 @@ body{padding-top:28px}
       { id: "v2", numero: "TK-Z-2026-10-27", fecha: "2026-10-27", total: 695.30, estado: "revisar", tipo_documento: "ticket_z" }
     ],
     ventaLineas: {
+      v1: [
+        { id: "vl3", plato_id: "pl1", nombre: "Hamburguesa Casa", cantidad: 22, precio_unitario: 11.5 },
+        { id: "vl4", plato_id: "pl2", nombre: "Ensaladilla Rusa", cantidad: 18, precio_unitario: 6.5 },
+        { id: "vl5", nombre: "Caña Alhambra", cantidad: 160, precio_unitario: 2.4 }
+      ],
       v2: [
         { id: "vl1", texto_original: "HAMBURGUESA CASA", cantidad: 9, precio_unitario: 11.5 },
         { id: "vl2", texto_original: "CANA ALHAMBRA", cantidad: 38, precio_unitario: 2.4 }
@@ -935,28 +948,109 @@ body{padding-top:28px}
   // ---------- INFORMES: catálogo de informes con parámetros y resultado ----------
   function enRango(f, desde, hasta){ return (!desde || f>=desde) && (!hasta || f<=hasta); }
   function statline(k, v, cls){ return '<div class="statline"><span class="k">'+esc(k)+'</span><span class="v'+(cls?" "+cls:"")+'">'+v+'</span></div>'; }
-  function tablaTotales(obj, nota){
-    var keys = Object.keys(obj).sort(function(a,b){ return obj[b]-obj[a]; });
-    if (!keys.length) return '<div class="empty">Sin datos en el periodo.</div>';
-    var total = keys.reduce(function(s,k){ return s+obj[k]; }, 0);
-    return (nota ? '<p class="lead" style="margin:0 0 10px">'+esc(nota)+'</p>' : "") +
-      keys.map(function(k){ return statline(k, eur(obj[k])); }).join("") +
-      '<div class="statline" style="margin-top:4px"><span class="k" style="font-weight:700">Total</span><span class="v rtotal">'+eur(total)+'</span></div>';
+
+  // ---------- NAVEGACIÓN CIRCULAR: enlaces entre proveedor ↔ compra ↔ producto, usados en cualquier pantalla ----------
+  function chip(kind, id, label){
+    return '<span class="elink" data-elink="'+kind+'" data-elink-id="'+esc(id)+'">'+esc(label)+'</span>';
+  }
+  function wireElinks(root){
+    qsa("[data-elink]", root).forEach(function(el){
+      el.addEventListener("click", function(ev){
+        ev.stopPropagation();
+        var kind = el.dataset.elink, id = el.dataset.elinkId;
+        if (kind === "proveedor") renderFichaProveedor(id);
+        else if (kind === "producto") renderFichaProducto(id);
+        else if (kind === "compra") abrirCompra(id);
+        else if (kind === "venta") abrirVenta(id);
+      });
+    });
+  }
+
+  // Una compra confirmada se ve, no se edita. Una pendiente se abre directamente a revisar.
+  function abrirCompra(id){
+    var c = DEMO.compras.find(function(x){ return x.id===id; });
+    if (c && c.estado === "confirmada"){ openModal(""); renderCompraDocumento(id); }
+    else { openModal(c && c.proveedores ? c.proveedores.nombre : "Revisar compra"); mostrarResolver(id, $("modalBody")); }
+  }
+  function abrirVenta(id){
+    var v = DEMO.ventas.find(function(x){ return x.id===id; });
+    if (v && v.estado === "confirmada"){ openModal(""); renderVentaDocumento(id); }
+    else { openModal("Revisar venta"); mostrarResolverVenta(id, $("modalBody")); }
+  }
+
+  // Documento de compra de solo lectura: proveedor y productos son enlaces a su propia ficha.
+  function renderCompraDocumento(id){
+    var c = DEMO.compras.find(function(x){ return x.id===id; });
+    if (!c) return;
+    $("modalTitle").textContent = c.numero || c.tipo_documento;
+    var provNombre = c.proveedores ? c.proveedores.nombre : null;
+    var provId = c.proveedor_id || null;
+    var lineas = DEMO.compraLineas[id] || [];
+    var html =
+      '<div class="card tight stack" style="margin-bottom:10px">' +
+        '<div class="row between">' +
+          (provId ? '<span class="txt" style="margin:0">'+chip("proveedor", provId, provNombre)+'</span>' : '<span class="txt" style="margin:0">'+esc(provNombre||"Sin proveedor")+'</span>') +
+          '<span class="chip '+c.estado+'">'+c.estado+'</span>' +
+        '</div>' +
+        '<div class="meta" style="margin:0">'+fecha(c.fecha)+' · '+esc(c.numero||c.tipo_documento)+' · '+eur(c.total)+'</div>' +
+      '</div>';
+    if (c.estado === "confirmada"){
+      html += '<div class="readonly-note">🔒 Compra confirmada: solo lectura.</div>';
+    } else {
+      html += '<p class="lead" style="margin:0 0 12px">Pendiente de revisar.</p>' +
+        '<button class="btn primary sm" id="irARevisarCompra" type="button" style="width:auto; margin-bottom:16px">Revisar ahora</button>';
+    }
+    html += '<h2>Productos</h2>';
+    if (!lineas.length){
+      html += '<div class="empty">'+(c.estado==="confirmada" ? "Sin líneas registradas." : "Pendiente de identificar productos.")+'</div>';
+    } else {
+      html += lineas.map(function(l){
+        var nombre = l.nombre || l.texto_original;
+        var label = l.producto_id ? chip("producto", l.producto_id, nombre) : esc(nombre);
+        return '<div class="statline"><span class="k">'+label+'</span>' +
+          '<span class="v">'+l.cantidad+' '+esc(l.unidad_compra||"")+' · '+eur(l.precio_unitario)+'/u</span></div>';
+      }).join("");
+    }
+    $("modalBody").innerHTML = html;
+    wireElinks($("modalBody"));
+    var btn = $("irARevisarCompra");
+    if (btn) btn.addEventListener("click", function(){ mostrarResolver(id, $("modalBody")); });
+  }
+
+  // Documento de venta de solo lectura: mismos criterios que la compra.
+  function renderVentaDocumento(id){
+    var v = DEMO.ventas.find(function(x){ return x.id===id; });
+    if (!v) return;
+    $("modalTitle").textContent = v.numero || v.tipo_documento;
+    var lineas = DEMO.ventaLineas[id] || [];
+    var html =
+      '<div class="card tight stack" style="margin-bottom:10px">' +
+        '<div class="row between"><span class="txt" style="margin:0">'+esc(v.numero||v.tipo_documento)+'</span><span class="chip '+v.estado+'">'+v.estado+'</span></div>' +
+        '<div class="meta" style="margin:0">'+fecha(v.fecha)+' · '+eur(v.total)+'</div>' +
+      '</div>';
+    if (v.estado === "confirmada"){
+      html += '<div class="readonly-note">🔒 Venta confirmada: solo lectura.</div>';
+    } else {
+      html += '<p class="lead" style="margin:0 0 12px">Pendiente de revisar.</p>' +
+        '<button class="btn primary sm" id="irARevisarVenta" type="button" style="width:auto; margin-bottom:16px">Revisar ahora</button>';
+    }
+    html += '<h2>Líneas vendidas</h2>';
+    if (!lineas.length){
+      html += '<div class="empty">'+(v.estado==="confirmada" ? "Sin líneas registradas." : "Pendiente de identificar.")+'</div>';
+    } else {
+      html += lineas.map(function(l){
+        var nombre = l.nombre || l.texto_original;
+        return '<div class="statline"><span class="k">'+esc(nombre)+'</span>' +
+          '<span class="v">'+l.cantidad+' ud · '+eur(l.precio_unitario)+'/ud</span></div>';
+      }).join("");
+    }
+    $("modalBody").innerHTML = html;
+    wireElinks($("modalBody"));
+    var btn = $("irARevisarVenta");
+    if (btn) btn.addEventListener("click", function(){ mostrarResolverVenta(id, $("modalBody")); });
   }
 
   var INFORMES = {
-    compras_proveedor: {
-      nombre: "Compras por proveedor", conFecha: true,
-      render: function(desde, hasta){
-        var rows = DEMO.compras.filter(function(c){ return enRango(c.fecha, desde, hasta); });
-        var porProv = {};
-        rows.forEach(function(c){
-          var k = c.proveedores ? c.proveedores.nombre : "Sin proveedor";
-          porProv[k] = (porProv[k]||0) + (c.total||0);
-        });
-        return tablaTotales(porProv, rows.length + " compra" + (rows.length===1?"":"s") + " en el periodo.");
-      }
-    },
     subidas_precio: {
       nombre: "Subidas de precio", desc: "Productos con mayor subida en los últimos 90 días. En verde el precio anterior, en rojo el actual.",
       render: function(){
@@ -985,14 +1079,41 @@ body{padding-top:28px}
           .slice().sort(function(a,b){ return a.fecha < b.fecha ? 1 : -1; });
         if (!rows.length) return '<div class="empty">Sin ventas en el periodo.</div>';
         var total = rows.reduce(function(s,v){ return s + (v.total||0); }, 0);
-        return rows.map(function(v){ return statline(fecha(v.fecha)+' · '+(v.numero||v.tipo_documento), eur(v.total)); }).join("") +
+        return rows.map(function(v){
+          return '<div class="lineitem" data-vd-venta="'+v.id+'" style="cursor:pointer">' +
+            '<div class="row between"><span class="txt">'+fecha(v.fecha)+' · '+esc(v.numero||v.tipo_documento)+'</span><span class="chip '+v.estado+'">'+v.estado+'</span></div>' +
+            '<div class="meta">'+eur(v.total)+'</div></div>';
+        }).join("") +
           '<div class="statline" style="margin-top:4px"><span class="k" style="font-weight:700">Total</span><span class="v rtotal">'+eur(total)+'</span></div>';
+      },
+      wire: function(body){
+        qsa("[data-vd-venta]", body).forEach(function(el){
+          el.addEventListener("click", function(){ abrirVenta(el.dataset.vdVenta); });
+        });
       }
     },
     rentabilidad: {
-      nombre: "Rentabilidad de platos",
-      render: function(){
-        return DEMO.rentabilidad.map(function(x){ return statline(x.plato, x.margen_pct+"% · "+eur(x.pvp-x.coste)); }).join("");
+      nombre: "Rentabilidad de platos", conFecha: true,
+      render: function(desde, hasta){
+        var ventasRango = DEMO.ventas.filter(function(v){ return enRango(v.fecha, desde, hasta); });
+        var porPlato = {};
+        ventasRango.forEach(function(v){
+          (DEMO.ventaLineas[v.id] || []).forEach(function(l){
+            if (!l.plato_id) return;
+            var k = l.plato_id;
+            if (!porPlato[k]) porPlato[k] = { nombre: l.nombre, cantidad: 0, ingresos: 0 };
+            porPlato[k].cantidad += l.cantidad;
+            porPlato[k].ingresos += l.cantidad * l.precio_unitario;
+          });
+        });
+        var keys = Object.keys(porPlato);
+        if (!keys.length) return '<div class="empty">Sin platos vendidos en el periodo.</div>';
+        return keys.map(function(k){
+          var p = porPlato[k];
+          var ref = DEMO.rentabilidad.find(function(x){ return norm(x.plato)===norm(p.nombre); });
+          var margenTxt = ref ? ref.margen_pct+"% margen · " : "";
+          return statline(p.nombre+' ('+p.cantidad+' ud)', margenTxt+eur(p.ingresos));
+        }).join("");
       }
     }
   };
@@ -1005,19 +1126,74 @@ body{padding-top:28px}
     '</div>';
   }
 
-  // ---------- INFORMES DINÁMICOS: elegir proveedor o familia y ver su historial real ----------
-  function abrirMovimientoProveedor(){
-    openModal("Movimiento por proveedor");
-    var body = $("modalBody");
-    if (!DEMO.proveedores.length){ body.innerHTML = '<div class="empty">Sin proveedores todavía.</div>'; return; }
-    body.innerHTML =
-      '<p class="lead" style="margin:0 0 12px">Elige un proveedor para ver su historial de compras.</p>' +
-      '<div class="stack">' + DEMO.proveedores.map(function(p){
-        return '<div class="lineitem" data-mov-prov="'+p.id+'" style="cursor:pointer"><span class="txt">'+esc(p.nombre)+'</span></div>';
-      }).join("") + '</div>';
-    qsa("[data-mov-prov]", body).forEach(function(el){
-      el.addEventListener("click", function(){ renderFichaProveedor(el.dataset.movProv); });
-    });
+  // ---------- COMPRAS POR PROVEEDOR: informe único (fecha + proveedor, ambos opcionales) y en cadena ----------
+  // Sin filtro de proveedor: totales por proveedor (clicable). Con proveedor: sus compras (clicable).
+  // Al pinchar una compra se abre su documento, con sus productos enlazados a la ficha de cada uno.
+  function abrirComprasProveedor(presetProveedorId){
+    openModal("Compras por proveedor");
+    renderComprasProveedor(presetProveedorId || "");
+  }
+
+  function renderComprasProveedor(proveedorId){
+    var hoy = new Date().toISOString().slice(0,10);
+    var hace30 = new Date(Date.now() - 30*86400000).toISOString().slice(0,10);
+    var html =
+      '<div class="reportparams">' +
+        '<div><label>Desde</label><input type="date" id="cpDesde" value="'+hace30+'"></div>' +
+        '<div><label>Hasta</label><input type="date" id="cpHasta" value="'+hoy+'"></div>' +
+      '</div>' +
+      '<div style="margin-bottom:14px"><label>Proveedor</label>' +
+        '<select id="cpProveedor"><option value="">Todos</option>' +
+        DEMO.proveedores.map(function(p){ return '<option value="'+p.id+'"'+(p.id===proveedorId?" selected":"")+'>'+esc(p.nombre)+'</option>'; }).join("") +
+        '</select></div>' +
+      '<div id="cpBody"></div>';
+    $("modalBody").innerHTML = html;
+
+    function pintar(){
+      var d = $("cpDesde").value, h = $("cpHasta").value, pid = $("cpProveedor").value;
+      var rows = DEMO.compras.filter(function(c){ return enRango(c.fecha, d, h); });
+      var body = $("cpBody");
+      if (!pid){
+        var porProv = {};
+        rows.forEach(function(c){
+          var k = c.proveedor_id || "sin";
+          if (!porProv[k]) porProv[k] = { id: c.proveedor_id, nombre: c.proveedores ? c.proveedores.nombre : "Sin proveedor", total: 0, n: 0 };
+          porProv[k].total += c.total || 0;
+          porProv[k].n++;
+        });
+        var keys = Object.keys(porProv).sort(function(a,b){ return porProv[b].total - porProv[a].total; });
+        if (!keys.length){ body.innerHTML = '<div class="empty">Sin compras en el periodo.</div>'; return; }
+        body.innerHTML = keys.map(function(k){
+          var p = porProv[k];
+          return '<div class="lineitem" data-cp-prov="'+(p.id||"")+'" style="cursor:pointer">' +
+            '<div class="row between"><span class="txt">'+esc(p.nombre)+'</span><span class="meta" style="margin:0">'+eur(p.total)+'</span></div>' +
+            '<div class="meta">'+p.n+' compra'+(p.n===1?"":"s")+'</div></div>';
+        }).join("");
+        qsa("[data-cp-prov]", body).forEach(function(el){
+          el.addEventListener("click", function(){
+            if (!el.dataset.cpProv) return; // "Sin proveedor": no hay con qué filtrar
+            $("cpProveedor").value = el.dataset.cpProv;
+            pintar();
+          });
+        });
+      } else {
+        rows = rows.filter(function(c){ return c.proveedor_id === pid; });
+        if (!rows.length){ body.innerHTML = '<div class="empty">Sin compras de este proveedor en el periodo.</div>'; return; }
+        rows.sort(function(a,b){ return a.fecha < b.fecha ? 1 : -1; });
+        body.innerHTML = rows.map(function(c){
+          return '<div class="lineitem" data-cp-compra="'+c.id+'" style="cursor:pointer">' +
+            '<div class="row between"><span class="txt">'+esc(c.numero||c.tipo_documento)+'</span><span class="chip '+c.estado+'">'+c.estado+'</span></div>' +
+            '<div class="meta">'+fecha(c.fecha)+' · '+eur(c.total)+'</div></div>';
+        }).join("");
+        qsa("[data-cp-compra]", body).forEach(function(el){
+          el.addEventListener("click", function(){ abrirCompra(el.dataset.cpCompra); });
+        });
+      }
+    }
+    pintar();
+    $("cpDesde").addEventListener("change", pintar);
+    $("cpHasta").addEventListener("change", pintar);
+    $("cpProveedor").addEventListener("change", pintar);
   }
 
   function abrirMovimientoFamilia(){
@@ -1054,7 +1230,7 @@ body{padding-top:28px}
   }
 
   function abrirInforme(id){
-    if (id === "mov_proveedor") return abrirMovimientoProveedor();
+    if (id === "compras_proveedor") return abrirComprasProveedor();
     if (id === "mov_familia") return abrirMovimientoFamilia();
     var def = INFORMES[id];
     if (!def) return;
@@ -1074,6 +1250,7 @@ body{padding-top:28px}
     $("modalBody").innerHTML = html;
     function pintar(){
       $("repBody").innerHTML = def.render(def.conFecha ? $("repDesde").value : null, def.conFecha ? $("repHasta").value : null);
+      if (def.wire) def.wire($("repBody"));
     }
     pintar();
     if (def.conFecha){
@@ -1441,8 +1618,7 @@ body{padding-top:28px}
     el.innerHTML = rows.map(renderCompraCard).join("");
     qsa("[data-compra]", el).forEach(function(card){
       card.addEventListener("click", function(){
-        openModal(card.dataset.nombre);
-        mostrarResolver(card.dataset.compra, $("modalBody"));
+        abrirCompra(card.dataset.compra);
       });
     });
   }
@@ -1618,9 +1794,12 @@ body{padding-top:28px}
     var el = $("ventasList");
     if (state.ventasErr){ el.innerHTML = '<div class="empty">No se pudieron cargar.</div>'; return; }
     var rows = state.ventasCache.slice();
-    var t = norm($("ventasBuscar").value);
+    var qraw = $("ventasBuscar").value.trim();
+    var t = norm(qraw);
     if (t){
-      rows = rows.filter(function(v){ return norm(v.numero||"").indexOf(t) > -1; });
+      rows = rows.filter(function(v){
+        return norm(v.numero||"").indexOf(t) > -1 || (v.fecha||"").indexOf(qraw) > -1;
+      });
       $("ventasListHead").textContent = "Resultados de la búsqueda";
     } else {
       rows = rows.filter(function(v){ return v.estado !== "confirmada"; });
@@ -1634,8 +1813,7 @@ body{padding-top:28px}
     el.innerHTML = rows.map(renderVentaCard).join("");
     qsa("[data-venta]", el).forEach(function(card){
       card.addEventListener("click", function(){
-        openModal("Revisar venta");
-        mostrarResolverVenta(card.dataset.venta, $("modalBody"));
+        abrirVenta(card.dataset.venta);
       });
     });
   }
@@ -1769,7 +1947,8 @@ body{padding-top:28px}
       html += '<div class="empty">Sin movimientos registrados.</div>';
     } else {
       html += movs.map(function(m){
-        return '<div class="statline"><span class="k">'+fecha(m.fecha)+' · '+esc(m.origen)+'</span>' +
+        var origenLabel = m.origenCompraId ? chip("compra", m.origenCompraId, m.origen) : esc(m.origen);
+        return '<div class="statline"><span class="k">'+fecha(m.fecha)+' · '+origenLabel+'</span>' +
           '<span class="v '+(m.tipo==="entrada"?"down":"up")+'">'+(m.tipo==="entrada"?"+":"−")+m.cantidad+' '+esc(item.unidad)+'</span></div>';
       }).join("");
     }
@@ -1786,6 +1965,7 @@ body{padding-top:28px}
     html += '<p class="lead" style="margin-top:14px">Para ajustar cantidades usa <b>Regularizar inventario</b> en la pantalla de Almacén.</p>';
 
     $("modalBody").innerHTML = html;
+    wireElinks($("modalBody"));
   }
 
   // ---------- FICHA DE PROVEEDOR: historial de compras, por fecha ----------
@@ -1815,8 +1995,7 @@ body{padding-top:28px}
     $("modalBody").innerHTML = html;
     qsa("[data-abrir-compra]", $("modalBody")).forEach(function(el){
       el.addEventListener("click", function(){
-        $("modalTitle").textContent = "Revisar compra";
-        mostrarResolver(el.dataset.abrirCompra, $("modalBody"));
+        abrirCompra(el.dataset.abrirCompra);
       });
     });
   }
@@ -1878,8 +2057,8 @@ body{padding-top:28px}
 
     qsa("[data-ficha-prod]", box).forEach(function(el){ el.addEventListener("click", function(){ $("modalTitle").textContent=""; renderFichaProducto(el.dataset.fichaProd); }); });
     qsa("[data-ficha-prov]", box).forEach(function(el){ el.addEventListener("click", function(){ renderFichaProveedor(el.dataset.fichaProv); }); });
-    qsa("[data-ficha-doc-compra]", box).forEach(function(el){ el.addEventListener("click", function(){ $("modalTitle").textContent="Revisar compra"; mostrarResolver(el.dataset.fichaDocCompra, $("modalBody")); }); });
-    qsa("[data-ficha-doc-venta]", box).forEach(function(el){ el.addEventListener("click", function(){ $("modalTitle").textContent="Revisar venta"; mostrarResolverVenta(el.dataset.fichaDocVenta, $("modalBody")); }); });
+    qsa("[data-ficha-doc-compra]", box).forEach(function(el){ el.addEventListener("click", function(){ abrirCompra(el.dataset.fichaDocCompra); }); });
+    qsa("[data-ficha-doc-venta]", box).forEach(function(el){ el.addEventListener("click", function(){ abrirVenta(el.dataset.fichaDocVenta); }); });
   }
 
   // ---------- START ----------
