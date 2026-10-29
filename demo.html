@@ -1596,7 +1596,7 @@ body{padding-top:28px}
         item.esperado = val;
         item.historial.push({ fecha: new Date().toISOString().slice(0,10), cantidad: val });
         toast("Inventario actualizado.", "ok");
-        renderFichaProducto(id);
+        closeModal();
         if (qs("#almacenView.active")) pintarAlmacenLista($("almacenBuscar").value);
       });
     });
