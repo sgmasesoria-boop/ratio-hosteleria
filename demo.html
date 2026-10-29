@@ -511,6 +511,21 @@ body{padding-top:28px}
     }
   };
 
+  // El stock de cada producto es SIEMPRE entradas (compras) menos salidas (ventas/mermas) de su
+  // historial de movimientos, nunca solo lo comprado. Se recalcula al cargar; una regularización
+  // de inventario (conteo manual) fija un nuevo punto de partida a partir del cual se sigue sumando.
+  function calcularStock(item){
+    var movs = DEMO.movimientos[item.nombre] || [];
+    var correcciones = (item.historial || []).slice().sort(function(a,b){ return a.fecha < b.fecha ? -1 : 1; });
+    var ultimaCorreccion = correcciones.length ? correcciones[correcciones.length-1] : null;
+    var base = ultimaCorreccion ? ultimaCorreccion.cantidad : 0;
+    return movs.reduce(function(total, m){
+      if (ultimaCorreccion && m.fecha <= ultimaCorreccion.fecha) return total; // ya incluido en el conteo manual
+      return total + (m.tipo === "entrada" ? m.cantidad : -m.cantidad);
+    }, base);
+  }
+  DEMO.inventario.forEach(function(it){ it.esperado = calcularStock(it); });
+
   // ---------- Catálogo de referencia (muestra de la base de ~1.370 artículos / 80 proveedores que ya tienes en Supabase) ----------
   var CATALOGO_PRODUCTOS = [
     "COCA-COLA", "COCA-COLA ZERO", "COCA-COLA ZERO ZERO", "COCA-COLA LIGHT", "COLA CAO",
