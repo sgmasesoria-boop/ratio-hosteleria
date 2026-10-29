@@ -176,6 +176,23 @@ nav.tabs button.active{color:var(--accent)}
 body{padding-top:28px}
 .alertbar{background:var(--warn-bg); border:1px solid var(--warn); color:var(--warn); border-radius:12px; padding:12px 14px; margin-bottom:12px; font-size:.88rem}
 .alertbar b{color:inherit}
+
+.kpirow{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px}
+.kpitile{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:12px 8px; text-align:center}
+.kpitile .num{font-size:1.15rem; font-weight:800; line-height:1.15}
+.kpitile .lbl{font-size:.68rem; color:var(--muted); margin-top:3px}
+
+.replist{display:flex; flex-direction:column; gap:8px}
+.replink{display:flex; justify-content:space-between; align-items:center; gap:8px; width:100%; text-align:left;
+  background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:11px 13px;
+  font-size:.88rem; font-weight:600; color:var(--fg); cursor:pointer; font-family:inherit}
+.replink:hover{border-color:var(--focus)}
+.replink .arrow{color:var(--muted); font-size:1.1rem}
+
+.reportparams{display:flex; gap:10px; margin-bottom:14px}
+.reportparams > div{flex:1}
+.reportparams label{display:block; font-size:.74rem; color:var(--muted); margin-bottom:4px}
+.rtotal{color:var(--focus)}
 </style>
 
 <div class="demobar">Modo demo · datos de ejemplo</div>
@@ -233,20 +250,19 @@ body{padding-top:28px}
     <section id="comprasView" class="view">
       <h1>Compras</h1>
       <p class="lead">Sube el documento o métela a mano. Lo pendiente de revisar aparece arriba del todo.</p>
-
-      <div class="alertbar" id="alertaSubidaCompras" hidden></div>
+      <button class="btn ghost sm" id="btnInformesCompras" type="button" style="width:auto; margin:0 0 12px">📊 Ver informes de compras</button>
 
       <div class="camera-cta" id="dropZoneCompras">
         <div class="ic">📷</div>
-        <div style="font-weight:700; margin-bottom:6px">Foto o PDF escaneado de albarán, factura o ticket</div>
-        <div class="lead" style="margin:0 0 12px">También vale un PDF escaneado, no solo foto. En esta demo la lectura automática está simulada: verás un aviso. Para probar la pantalla de revisar usa un documento de la lista de abajo, o mete la compra a mano.</div>
+        <div style="font-weight:700; margin-bottom:6px">Albarán, factura o ticket</div>
+        <div class="lead" style="margin:0 0 12px">Foto o cualquier archivo (PDF, Excel, CSV…). En esta demo la lectura automática está simulada: verás un aviso. Para probar la pantalla de revisar usa un documento de la lista de abajo, o mete la compra a mano.</div>
         <div class="upload-row">
           <button class="btn primary" id="btnCamaraCompra" type="button">Hacer foto</button>
-          <button class="btn" id="btnGaleriaCompra" type="button">Elegir foto o PDF</button>
+          <button class="btn" id="btnGaleriaCompra" type="button">Subir archivo</button>
         </div>
       </div>
       <input type="file" id="fileCamaraCompra" accept="image/*" capture="environment" hidden>
-      <input type="file" id="fileGaleriaCompra" accept="image/*,application/pdf,.pdf" hidden>
+      <input type="file" id="fileGaleriaCompra" hidden>
       <div id="subirEstadoCompras" class="card" hidden></div>
 
       <button class="btn" id="btnCompraManual" type="button" style="margin:12px 0">+ Meter compra a mano</button>
@@ -259,18 +275,19 @@ body{padding-top:28px}
     <section id="ventasView" class="view">
       <h1>Ventas</h1>
       <p class="lead">Carga el ticket Z, el resumen de ventas, o mételas a mano. Lo pendiente de revisar aparece arriba del todo.</p>
+      <button class="btn ghost sm" id="btnInformesVentas" type="button" style="width:auto; margin:0 0 12px">📊 Ver informes de ventas</button>
 
       <div class="camera-cta" id="dropZoneVentas">
         <div class="ic">📷</div>
-        <div style="font-weight:700; margin-bottom:6px">Foto, PDF escaneado o archivo de ventas</div>
-        <div class="lead" style="margin:0 0 12px">También vale un PDF escaneado del ticket Z, no solo foto. En esta demo la lectura automática está simulada: verás un aviso. Para probar la pantalla de revisar usa un documento de la lista de abajo, o mete la venta a mano.</div>
+        <div style="font-weight:700; margin-bottom:6px">Ticket Z o resumen de ventas</div>
+        <div class="lead" style="margin:0 0 12px">Foto o cualquier archivo (PDF, Excel, CSV…). En esta demo la lectura automática está simulada: verás un aviso. Para probar la pantalla de revisar usa un documento de la lista de abajo, o mete la venta a mano.</div>
         <div class="upload-row">
           <button class="btn primary" id="btnCamaraVenta" type="button">Hacer foto</button>
-          <button class="btn" id="btnGaleriaVenta" type="button">Elegir archivo</button>
+          <button class="btn" id="btnGaleriaVenta" type="button">Subir archivo</button>
         </div>
       </div>
       <input type="file" id="fileCamaraVenta" accept="image/*" capture="environment" hidden>
-      <input type="file" id="fileGaleriaVenta" accept="image/*,application/pdf,.pdf,.csv,.xls,.xlsx" hidden>
+      <input type="file" id="fileGaleriaVenta" hidden>
       <div id="subirEstadoVentas" class="card" hidden></div>
 
       <button class="btn" id="btnVentaManual" type="button" style="margin:12px 0">+ Meter venta a mano</button>
@@ -281,37 +298,34 @@ body{padding-top:28px}
     </section>
 
     <section id="infoView" class="view">
-      <h1>Información</h1>
+      <h1>Informes</h1>
       <p class="lead" id="infoFecha"></p>
 
+      <div class="kpirow" id="kpiRow"></div>
+
       <div class="card">
-        <h2>Subidas de precio recientes</h2>
-        <div id="subidasList"><div class="empty">Cargando…</div></div>
+        <h2>Compras</h2>
+        <div class="replist">
+          <button class="replink" type="button" data-informe="compras_proveedor"><span>Compras por proveedor</span><span class="arrow">›</span></button>
+          <button class="replink" type="button" data-informe="subidas_precio"><span>Subidas de precio</span><span class="arrow">›</span></button>
+          <button class="replink" type="button" data-informe="ahorro_proveedor"><span>Ahorro cambiando de proveedor</span><span class="arrow">›</span></button>
+        </div>
       </div>
 
       <div class="card">
-        <h2>Ahorro cambiando de proveedor</h2>
-        <div id="ahorroList"><div class="empty">Cargando…</div></div>
+        <h2>Ventas</h2>
+        <div class="replist">
+          <button class="replink" type="button" data-informe="ventas_dia"><span>Ventas por día</span><span class="arrow">›</span></button>
+          <button class="replink" type="button" data-informe="rentabilidad"><span>Rentabilidad de platos</span><span class="arrow">›</span></button>
+        </div>
       </div>
 
       <div class="card">
-        <h2>Rentabilidad de platos</h2>
-        <div id="rentabilidadList"><div class="empty">Cargando…</div></div>
-      </div>
-
-      <div class="card">
-        <h2>Movimiento por familia</h2>
-        <div id="movFamiliaList"><div class="empty">Cargando…</div></div>
-      </div>
-
-      <div class="card">
-        <h2>Movimiento por proveedor</h2>
-        <div id="movProveedorList"><div class="empty">Cargando…</div></div>
-      </div>
-
-      <div class="card">
-        <h2>Resumen de facturas y albaranes</h2>
-        <div id="resumenDocsBox"><div class="empty">Cargando…</div></div>
+        <h2>Almacén</h2>
+        <div class="replist">
+          <button class="replink" type="button" data-informe="mov_familia"><span>Movimiento por familia</span><span class="arrow">›</span></button>
+          <button class="replink" type="button" data-informe="mov_proveedor"><span>Movimiento por proveedor</span><span class="arrow">›</span></button>
+        </div>
       </div>
 
       <div class="card stack">
@@ -330,7 +344,8 @@ body{padding-top:28px}
 
     <section id="almacenView" class="view">
       <h1>Almacén e inventario</h1>
-      <p class="lead">De la A a la Z. Toca un producto para ver su ficha completa: historial de entradas y salidas, y corregir la cantidad.</p>
+      <p class="lead">De la A a la Z. Toca un producto para ver su ficha completa con el historial de entradas y salidas.</p>
+      <button class="btn primary" id="btnRegularizarInventario" type="button" style="margin-bottom:14px">🔄 Regularizar inventario</button>
       <input type="text" id="almacenBuscar" placeholder="Buscar un producto…" style="margin-bottom:12px">
       <div id="inventarioList"><div class="empty">Cargando…</div></div>
     </section>
@@ -341,7 +356,7 @@ body{padding-top:28px}
     <div class="inner">
       <button data-view="compras" class="active" type="button"><span class="ic">▤</span>Compras</button>
       <button data-view="ventas" type="button"><span class="ic">💶</span>Ventas</button>
-      <button data-view="info" type="button"><span class="ic">ⓘ</span>Información</button>
+      <button data-view="info" type="button"><span class="ic">ⓘ</span>Informes</button>
       <button data-view="almacen" type="button"><span class="ic">📦</span>Almacén</button>
     </div>
   </nav>
@@ -892,17 +907,104 @@ body{padding-top:28px}
     if (view==="almacen") cargarAlmacen();
   }
 
-  // ---------- AVISO DE SUBIDA DE PRECIO (al instante, en la propia pantalla de Compras) ----------
-  function pintarAlertaSubida(){
-    var box = $("alertaSubidaCompras");
-    if (!DEMO.subidas.length){ box.hidden = true; return; }
-    var x = DEMO.subidas[0];
-    box.hidden = false;
-    box.innerHTML = '<div class="row between" style="gap:10px">' +
-      '<span>⚠ <b>'+esc(x.nombre)+'</b> subió un '+Number(x.subida_pct).toFixed(0)+'% · impacto '+eur(x.impacto_90d_eur)+' en 90 días.</span>' +
-      '<button class="btn ghost sm" id="verInfoSubida" type="button" style="width:auto">Ver informe</button></div>';
-    $("verInfoSubida").addEventListener("click", function(){ irA("info"); });
+  // ---------- INFORMES: catálogo de informes con parámetros y resultado ----------
+  function enRango(f, desde, hasta){ return (!desde || f>=desde) && (!hasta || f<=hasta); }
+  function statline(k, v, cls){ return '<div class="statline"><span class="k">'+esc(k)+'</span><span class="v'+(cls?" "+cls:"")+'">'+v+'</span></div>'; }
+  function tablaTotales(obj, nota){
+    var keys = Object.keys(obj).sort(function(a,b){ return obj[b]-obj[a]; });
+    if (!keys.length) return '<div class="empty">Sin datos en el periodo.</div>';
+    var total = keys.reduce(function(s,k){ return s+obj[k]; }, 0);
+    return (nota ? '<p class="lead" style="margin:0 0 10px">'+esc(nota)+'</p>' : "") +
+      keys.map(function(k){ return statline(k, eur(obj[k])); }).join("") +
+      '<div class="statline" style="margin-top:4px"><span class="k" style="font-weight:700">Total</span><span class="v rtotal">'+eur(total)+'</span></div>';
   }
+
+  var INFORMES = {
+    compras_proveedor: {
+      nombre: "Compras por proveedor", conFecha: true,
+      render: function(desde, hasta){
+        var rows = DEMO.compras.filter(function(c){ return enRango(c.fecha, desde, hasta); });
+        var porProv = {};
+        rows.forEach(function(c){
+          var k = c.proveedores ? c.proveedores.nombre : "Sin proveedor";
+          porProv[k] = (porProv[k]||0) + (c.total||0);
+        });
+        return tablaTotales(porProv, rows.length + " compra" + (rows.length===1?"":"s") + " en el periodo.");
+      }
+    },
+    subidas_precio: {
+      nombre: "Subidas de precio", desc: "Productos con mayor subida en los últimos 90 días.",
+      render: function(){
+        if (!DEMO.subidas.length) return '<div class="empty">Sin subidas detectadas.</div>';
+        return DEMO.subidas.map(function(x){ return statline(x.nombre, "+"+Number(x.subida_pct).toFixed(0)+"% · "+eur(x.impacto_90d_eur), "up"); }).join("");
+      }
+    },
+    ahorro_proveedor: {
+      nombre: "Ahorro cambiando de proveedor", desc: "Productos con una alternativa más barata disponible.",
+      render: function(){
+        if (!DEMO.ahorro.length) return '<div class="empty">Sin alternativas detectadas.</div>';
+        return DEMO.ahorro.map(function(x){ return statline(x.nombre, "-"+Number(x.ahorro_pct).toFixed(0)+"%", "down"); }).join("");
+      }
+    },
+    ventas_dia: {
+      nombre: "Ventas por día", conFecha: true,
+      render: function(desde, hasta){
+        var rows = DEMO.ventas.filter(function(v){ return enRango(v.fecha, desde, hasta); })
+          .slice().sort(function(a,b){ return a.fecha < b.fecha ? 1 : -1; });
+        if (!rows.length) return '<div class="empty">Sin ventas en el periodo.</div>';
+        var total = rows.reduce(function(s,v){ return s + (v.total||0); }, 0);
+        return rows.map(function(v){ return statline(fecha(v.fecha)+' · '+(v.numero||v.tipo_documento), eur(v.total)); }).join("") +
+          '<div class="statline" style="margin-top:4px"><span class="k" style="font-weight:700">Total</span><span class="v rtotal">'+eur(total)+'</span></div>';
+      }
+    },
+    rentabilidad: {
+      nombre: "Rentabilidad de platos",
+      render: function(){
+        return DEMO.rentabilidad.map(function(x){ return statline(x.plato, x.margen_pct+"% · "+eur(x.pvp-x.coste)); }).join("");
+      }
+    },
+    mov_familia: {
+      nombre: "Movimiento por familia",
+      render: function(){ return DEMO.movFamilia.map(function(x){ return statline(x.familia, eur(x.total)); }).join(""); }
+    },
+    mov_proveedor: {
+      nombre: "Movimiento por proveedor",
+      render: function(){ return DEMO.movProveedor.map(function(x){ return statline(x.proveedor, eur(x.total)); }).join(""); }
+    }
+  };
+
+  function abrirInforme(id){
+    var def = INFORMES[id];
+    if (!def) return;
+    openModal(def.nombre);
+    var hoy = new Date().toISOString().slice(0,10);
+    var hace30 = new Date(Date.now() - 30*86400000).toISOString().slice(0,10);
+    var html = "";
+    if (def.conFecha){
+      html += '<div class="reportparams">' +
+        '<div><label>Desde</label><input type="date" id="repDesde" value="'+hace30+'"></div>' +
+        '<div><label>Hasta</label><input type="date" id="repHasta" value="'+hoy+'"></div>' +
+        '</div>';
+    } else if (def.desc){
+      html += '<p class="lead" style="margin:0 0 10px">'+esc(def.desc)+'</p>';
+    }
+    html += '<div id="repBody"></div>';
+    $("modalBody").innerHTML = html;
+    function pintar(){
+      $("repBody").innerHTML = def.render(def.conFecha ? $("repDesde").value : null, def.conFecha ? $("repHasta").value : null);
+    }
+    pintar();
+    if (def.conFecha){
+      $("repDesde").addEventListener("change", pintar);
+      $("repHasta").addEventListener("change", pintar);
+    }
+  }
+
+  qsa("[data-informe]").forEach(function(btn){
+    btn.addEventListener("click", function(){ abrirInforme(btn.dataset.informe); });
+  });
+  $("btnInformesCompras").addEventListener("click", function(){ abrirInforme("compras_proveedor"); });
+  $("btnInformesVentas").addEventListener("click", function(){ abrirInforme("ventas_dia"); });
 
   // ---------- SUBIR: COMPRAS ----------
   $("btnCamaraCompra").addEventListener("click", function(){ $("fileCamaraCompra").click(); });
@@ -1218,7 +1320,6 @@ body{padding-top:28px}
   }
 
   function cargarCompras(){
-    pintarAlertaSubida();
     var input = $("comprasBuscar");
     if (!input.dataset.wired){
       input.dataset.wired = "1";
@@ -1449,49 +1550,14 @@ body{padding-top:28px}
   function cargarInfo(){
     $("infoFecha").textContent = new Date().toLocaleDateString("es-ES",{weekday:"long", day:"numeric", month:"long"});
 
-    sb.from("v_impacto_subidas").select("*").eq("negocio_id", state.negocioId).order("impacto_90d_eur",{ascending:false}).limit(5)
-      .then(function(r){
-        var el = $("subidasList");
-        var rows = r.data || [];
-        if (r.error || !rows.length){ el.innerHTML = '<div class="empty">Sin datos todavía.</div>'; return; }
-        el.innerHTML = rows.map(function(x){
-          return '<div class="statline"><span class="k">'+esc(x.nombre)+'</span>' +
-            '<span class="v up">+'+Number(x.subida_pct).toFixed(0)+'% · '+eur(x.impacto_90d_eur)+'</span></div>';
-        }).join("");
-      });
-
-    sb.from("v_ahorro_proveedor").select("*").eq("negocio_id", state.negocioId).order("ahorro_pct",{ascending:false}).limit(5)
-      .then(function(r){
-        var el = $("ahorroList");
-        var rows = r.data || [];
-        if (r.error || !rows.length){ el.innerHTML = '<div class="empty">Sin datos todavía.</div>'; return; }
-        el.innerHTML = rows.map(function(x){
-          return '<div class="statline"><span class="k">'+esc(x.nombre)+'</span>' +
-            '<span class="v down">-'+Number(x.ahorro_pct).toFixed(0)+'%</span></div>';
-        }).join("");
-      });
-
-    $("rentabilidadList").innerHTML = DEMO.rentabilidad.map(function(x){
-      return '<div class="statline"><span class="k">'+esc(x.plato)+'</span>' +
-        '<span class="v" style="color:var(--good)">'+x.margen_pct+'% · '+eur(x.pvp - x.coste)+'</span></div>';
-    }).join("");
-
-    $("movFamiliaList").innerHTML = DEMO.movFamilia.map(function(x){
-      return '<div class="statline"><span class="k">'+esc(x.familia)+'</span><span class="v">'+eur(x.total)+'</span></div>';
-    }).join("");
-
-    $("movProveedorList").innerHTML = DEMO.movProveedor.map(function(x){
-      return '<div class="statline"><span class="k">'+esc(x.proveedor)+'</span><span class="v">'+eur(x.total)+'</span></div>';
-    }).join("");
-
     var d = DEMO.resumenDocs;
-    $("resumenDocsBox").innerHTML =
-      '<div class="statline"><span class="k">Periodo</span><span class="v">'+esc(d.mes)+'</span></div>' +
-      '<div class="statline"><span class="k">Albaranes</span><span class="v">'+d.nAlbaranes+'</span></div>' +
-      '<div class="statline"><span class="k">Facturas</span><span class="v">'+d.nFacturas+'</span></div>' +
-      '<div class="statline"><span class="k">Tickets</span><span class="v">'+d.nTickets+'</span></div>' +
-      '<div class="statline"><span class="k">Total compras</span><span class="v">'+eur(d.totalCompras)+'</span></div>' +
-      '<div class="statline"><span class="k">Total ventas</span><span class="v">'+eur(d.totalVentas)+'</span></div>';
+    var margenMedio = DEMO.rentabilidad.length
+      ? Math.round(DEMO.rentabilidad.reduce(function(s,x){ return s+x.margen_pct; },0) / DEMO.rentabilidad.length)
+      : 0;
+    $("kpiRow").innerHTML =
+      '<div class="kpitile"><div class="num">'+eur(d.totalCompras)+'</div><div class="lbl">Compras · '+esc(d.mes)+'</div></div>' +
+      '<div class="kpitile"><div class="num">'+eur(d.totalVentas)+'</div><div class="lbl">Ventas · '+esc(d.mes)+'</div></div>' +
+      '<div class="kpitile"><div class="num">'+margenMedio+'%</div><div class="lbl">Margen medio</div></div>';
 
     cargarNegocioInfo();
   }
@@ -1542,7 +1608,52 @@ body{padding-top:28px}
     });
   }
 
-  // ---------- FICHA DE PRODUCTO: datos, historial de movimientos y corrección de inventario ----------
+  // ---------- REGULARIZACIÓN DE INVENTARIO: una sola pantalla con todos los productos ----------
+  function abrirRegularizacion(){
+    openModal("Regularización de inventario");
+    var items = DEMO.inventario.slice()
+      .sort(function(a,b){ return norm(a.nombre) < norm(b.nombre) ? -1 : (norm(a.nombre) > norm(b.nombre) ? 1 : 0); });
+    var html =
+      '<p class="lead" style="margin:0 0 14px">Pon la cantidad real de cada producto. Solo se guardan los que cambien.</p>' +
+      '<div class="stack">' +
+      items.map(function(it){
+        return '<div class="row between" style="gap:10px">' +
+          '<div style="flex:1; min-width:0">' +
+            '<div class="txt" style="font-weight:700; font-size:.9rem; margin:0">'+esc(it.nombre)+'</div>' +
+            '<div class="meta" style="margin:0">'+esc(it.zona)+'</div>' +
+          '</div>' +
+          '<input type="number" step="any" min="0" data-reg-id="'+it.id+'" value="'+it.esperado+'" style="width:92px; text-align:right">' +
+          '<span class="meta" style="margin:0; width:30px">'+esc(it.unidad)+'</span>' +
+        '</div>';
+      }).join("") +
+      '</div>' +
+      '<button class="btn primary" id="guardarRegularizacion" type="button" style="margin-top:18px; width:100%">Guardar regularización</button>';
+    $("modalBody").innerHTML = html;
+
+    $("guardarRegularizacion").addEventListener("click", function(){
+      var btn = this;
+      setLoading(btn, true, "Guardando…");
+      wait(null, 250).then(function(){
+        var hoy = new Date().toISOString().slice(0,10);
+        var cambios = 0;
+        qsa("[data-reg-id]", $("modalBody")).forEach(function(inp){
+          var it = DEMO.inventario.find(function(x){ return x.id===inp.dataset.regId; });
+          var val = parseFloat(inp.value);
+          if (!it || isNaN(val) || val<0 || val===it.esperado) return;
+          it.historial = it.historial || [];
+          it.historial.push({ fecha: hoy, cantidad: val });
+          it.esperado = val;
+          cambios++;
+        });
+        toast(cambios ? "Inventario regularizado ("+cambios+" producto"+(cambios===1?"":"s")+" actualizado"+(cambios===1?"":"s")+")." : "No había cambios que guardar.", "ok");
+        closeModal();
+        if (qs("#almacenView.active")) pintarAlmacenLista($("almacenBuscar").value);
+      });
+    });
+  }
+  $("btnRegularizarInventario").addEventListener("click", abrirRegularizacion);
+
+  // ---------- FICHA DE PRODUCTO: datos e historial de entradas, salidas y correcciones ----------
   function renderFichaProducto(id){
     var item = DEMO.inventario.find(function(x){ return x.id===id; });
     if (!item) return;
@@ -1554,16 +1665,9 @@ body{padding-top:28px}
     var correcciones = item.historial.slice().reverse();
 
     var html =
-      '<div class="card tight row between" style="margin-bottom:14px">' +
+      '<div class="card tight row between" style="margin-bottom:16px">' +
         '<span class="meta" style="margin:0">'+esc(item.zona)+'</span>' +
         '<span class="txt" style="margin:0">'+item.esperado+' '+esc(item.unidad)+'</span>' +
-      '</div>' +
-      '<div class="card stack" style="margin-bottom:16px">' +
-        '<label>Corregir cantidad en almacén</label>' +
-        '<div class="row" style="gap:8px">' +
-          '<input type="number" step="any" min="0" id="fichaInvInput" value="'+item.esperado+'" style="flex:1">' +
-          '<button class="btn primary sm" id="fichaInvGuardar" type="button" style="width:auto">Guardar</button>' +
-        '</div>' +
       '</div>' +
       '<h2>Entradas y salidas (por fecha)</h2>';
 
@@ -1585,21 +1689,9 @@ body{padding-top:28px}
       }).join("");
     }
 
-    $("modalBody").innerHTML = html;
+    html += '<p class="lead" style="margin-top:14px">Para ajustar cantidades usa <b>Regularizar inventario</b> en la pantalla de Almacén.</p>';
 
-    $("fichaInvGuardar").addEventListener("click", function(){
-      var btn = this;
-      var val = parseFloat($("fichaInvInput").value);
-      if (isNaN(val) || val<0){ toast("Indica una cantidad válida.", "err"); return; }
-      setLoading(btn, true, "Guardando…");
-      wait(null, 200).then(function(){
-        item.esperado = val;
-        item.historial.push({ fecha: new Date().toISOString().slice(0,10), cantidad: val });
-        toast("Inventario actualizado.", "ok");
-        closeModal();
-        if (qs("#almacenView.active")) pintarAlmacenLista($("almacenBuscar").value);
-      });
-    });
+    $("modalBody").innerHTML = html;
   }
 
   // ---------- FICHA DE PROVEEDOR: historial de compras, por fecha ----------
