@@ -253,8 +253,12 @@ body{padding-top:28px}
     </section>
 
     <section id="comprasView" class="view">
-      <h1>Compras</h1>
+      <div class="row between" style="margin-bottom:4px">
+        <h1 style="margin-bottom:0">Compras</h1>
+        <button class="btn primary sm" id="btnCompraManual" type="button">+ Compra manual</button>
+      </div>
       <p class="lead">Últimos albaranes, facturas y tickets registrados.</p>
+      <div id="manualBox"></div>
       <div id="comprasList"><div class="empty">Cargando…</div></div>
       <div id="resolverBoxCompras"></div>
     </section>
@@ -383,8 +387,37 @@ body{padding-top:28px}
       signOut: function(){ location.reload(); }
     },
     from: mockBuilder,
-    rpc: function(name){
+    rpc: function(name, args){
+      args = args || {};
       if (name === "inventario_sugerido") return wait({ data: DEMO.conteo, error: null });
+      if (name === "sugerir_productos") return wait({ data: [], error: null });
+      if (name === "resolver_proveedor"){
+        var c = DEMO.compras.find(function(c){ return c.id === args.p_compra; });
+        if (c){
+          if (args.p_nombre_nuevo){
+            var nuevoProv = { id: "p" + Date.now(), nombre: args.p_nombre_nuevo };
+            DEMO.proveedores.push(nuevoProv);
+            c.proveedor_id = nuevoProv.id;
+            c.proveedores = { nombre: nuevoProv.nombre };
+          } else {
+            var prov = DEMO.proveedores.find(function(p){ return p.id === args.p_proveedor; });
+            c.proveedor_id = args.p_proveedor;
+            c.proveedores = { nombre: prov ? prov.nombre : "Proveedor" };
+          }
+        }
+        return wait({ data: null, error: null });
+      }
+      if (name === "resolver_linea"){
+        Object.keys(DEMO.compraLineas).forEach(function(cid){
+          DEMO.compraLineas[cid] = DEMO.compraLineas[cid].filter(function(l){ return l.id !== args.p_linea; });
+        });
+        return wait({ data: null, error: null });
+      }
+      if (name === "confirmar_compra"){
+        var cc = DEMO.compras.find(function(c){ return c.id === args.p_compra; });
+        if (cc) cc.estado = "confirmada";
+        return wait({ data: null, error: null });
+      }
       return wait({ data: null, error: null });
     },
     storage: { from: function(){ return { upload: function(){ return wait({ data: {}, error: null }); } }; } },
@@ -712,10 +745,16 @@ body{padding-top:28px}
   function renderProveedorForm(compra){
     return '<div class="lineitem" data-prov-form>' +
       '<div class="txt">Proveedor sin identificar</div>' +
-      '<div class="meta">Elige uno existente o escribe el nombre para crearlo.</div>' +
-      '<select data-prov-select style="margin-bottom:8px"><option value="">— crear nuevo —</option></select>' +
-      '<input type="text" data-prov-nuevo placeholder="Nombre del proveedor" style="margin-bottom:8px">' +
-      '<button class="btn primary sm" data-prov-guardar type="button">Guardar proveedor</button>' +
+      '<div class="meta">Asigna uno que ya tengas, o crea uno nuevo.</div>' +
+      '<select data-prov-select style="margin-bottom:8px"><option value="">Elige un proveedor…</option></select>' +
+      '<button class="btn primary sm" data-prov-asignar type="button">Asignar proveedor</button>' +
+      '<div style="border-top:1px solid var(--border); margin-top:12px; padding-top:12px">' +
+        '<button class="btn sm" data-prov-nuevo-toggle type="button">+ Crear proveedor nuevo</button>' +
+        '<div data-prov-nuevo-box hidden style="margin-top:8px">' +
+          '<input type="text" data-prov-nuevo placeholder="Nombre del proveedor nuevo" style="margin-bottom:8px">' +
+          '<button class="btn primary sm" data-prov-crear type="button">Crear y asignar</button>' +
+        '</div>' +
+      '</div>' +
       '</div>';
   }
 
@@ -728,21 +767,131 @@ body{padding-top:28px}
         var o = document.createElement("option"); o.value = p.id; o.textContent = p.nombre; select.appendChild(o);
       });
     });
-    qs("[data-prov-guardar]", form).addEventListener("click", function(){
+
+    qs("[data-prov-asignar]", form).addEventListener("click", function(){
       var btn = this;
-      var provId = select.value || null;
-      var nuevo = qs("[data-prov-nuevo]", form).value.trim();
-      if (!provId && !nuevo){ toast("Elige un proveedor o escribe uno nuevo.", "err"); return; }
-      var texto = provId ? select.options[select.selectedIndex].textContent : nuevo;
-      setLoading(btn, true, "Guardando…");
-      sb.rpc("resolver_proveedor", { p_compra: compra.id, p_texto_documento: texto, p_proveedor: provId, p_nombre_nuevo: provId?null:nuevo, p_nif: null })
+      if (!select.value){ toast("Elige un proveedor de la lista.", "err"); return; }
+      var texto = select.options[select.selectedIndex].textContent;
+      setLoading(btn, true, "Asignando…");
+      sb.rpc("resolver_proveedor", { p_compra: compra.id, p_texto_documento: texto, p_proveedor: select.value, p_nombre_nuevo: null, p_nif: null })
         .then(function(r){
-          if (r.error){ toast(r.error.message, "err"); setLoading(btn,false,null,"Guardar proveedor"); return; }
-          toast("Proveedor guardado.", "ok");
+          if (r.error){ toast(r.error.message, "err"); setLoading(btn,false,null,"Asignar proveedor"); return; }
+          toast("Proveedor asignado.", "ok");
+          onDone();
+        });
+    });
+
+    var toggleBtn = qs("[data-prov-nuevo-toggle]", form);
+    var nuevoBox = qs("[data-prov-nuevo-box]", form);
+    toggleBtn.addEventListener("click", function(){ nuevoBox.hidden = !nuevoBox.hidden; });
+
+    qs("[data-prov-crear]", form).addEventListener("click", function(){
+      var btn = this;
+      var nuevo = qs("[data-prov-nuevo]", form).value.trim();
+      if (!nuevo){ toast("Escribe el nombre del proveedor nuevo.", "err"); return; }
+      setLoading(btn, true, "Creando…");
+      sb.rpc("resolver_proveedor", { p_compra: compra.id, p_texto_documento: nuevo, p_proveedor: null, p_nombre_nuevo: nuevo, p_nif: null })
+        .then(function(r){
+          if (r.error){ toast(r.error.message, "err"); setLoading(btn,false,null,"Crear y asignar"); return; }
+          toast("Proveedor creado y asignado.", "ok");
           onDone();
         });
     });
   }
+
+  // ---------- COMPRA MANUAL (alta directa de proveedor y artículos, sin foto) ----------
+  var manualLineaN = 0;
+  $("btnCompraManual").addEventListener("click", function(){
+    var box = $("manualBox");
+    if (box.innerHTML){ box.innerHTML = ""; return; }
+    manualLineaN = 0;
+    box.innerHTML =
+      '<div class="card stack" id="manualForm">' +
+        '<h2 style="margin:0">Compra manual</h2>' +
+        '<div>' +
+          '<label>Proveedor</label>' +
+          '<select id="manualProvSelect" style="margin-bottom:6px"><option value="">Elige uno…</option></select>' +
+          '<input type="text" id="manualProvNuevo" placeholder="…o escribe uno nuevo">' +
+        '</div>' +
+        '<div>' +
+          '<label>Artículos</label>' +
+          '<div id="manualLineas" class="stack"></div>' +
+          '<button class="btn sm" id="manualAddLinea" type="button" style="margin-top:8px">+ Añadir artículo</button>' +
+        '</div>' +
+        '<div class="row" style="gap:8px">' +
+          '<button class="btn" id="manualCancelar" type="button">Cancelar</button>' +
+          '<button class="btn primary" id="manualGuardar" type="button">Guardar compra</button>' +
+        '</div>' +
+      '</div>';
+
+    var select = $("manualProvSelect");
+    sb.from("proveedores").select("id,nombre").eq("negocio_id", state.negocioId).order("nombre").then(function(r){
+      (r.data||[]).forEach(function(p){
+        var o = document.createElement("option"); o.value = p.id; o.textContent = p.nombre; select.appendChild(o);
+      });
+    });
+
+    function addLinea(){
+      manualLineaN++;
+      var row = document.createElement("div");
+      row.className = "row";
+      row.style.gap = "6px";
+      row.dataset.linea = manualLineaN;
+      row.innerHTML =
+        '<input type="text" placeholder="Producto" data-ml-nombre style="flex:2">' +
+        '<input type="number" step="any" min="0" placeholder="Cant." data-ml-cant style="flex:1">' +
+        '<input type="number" step="any" min="0" placeholder="Precio/u" data-ml-precio style="flex:1">' +
+        '<button class="iconbtn" type="button" data-ml-quitar title="Quitar">✕</button>';
+      $("manualLineas").appendChild(row);
+      qs("[data-ml-quitar]", row).addEventListener("click", function(){ row.remove(); });
+    }
+    addLinea();
+    $("manualAddLinea").addEventListener("click", addLinea);
+    $("manualCancelar").addEventListener("click", function(){ box.innerHTML = ""; });
+
+    $("manualGuardar").addEventListener("click", function(){
+      var btn = this;
+      var provId = select.value;
+      var provNuevo = $("manualProvNuevo").value.trim();
+      if (!provId && !provNuevo){ toast("Indica el proveedor.", "err"); return; }
+
+      var lineas = qsa("#manualLineas > div").map(function(row){
+        return {
+          nombre: qs("[data-ml-nombre]", row).value.trim(),
+          cant: parseFloat(qs("[data-ml-cant]", row).value),
+          precio: parseFloat(qs("[data-ml-precio]", row).value)
+        };
+      }).filter(function(l){ return l.nombre && l.cant>0 && l.precio>=0; });
+
+      if (!lineas.length){ toast("Añade al menos un artículo con cantidad y precio.", "err"); return; }
+
+      setLoading(btn, true, "Guardando…");
+      var provNombre = provId ? select.options[select.selectedIndex].textContent : provNuevo;
+      if (!provId){
+        var nuevoProv = { id: "p" + Date.now(), nombre: provNuevo };
+        DEMO.proveedores.push(nuevoProv);
+      }
+      var total = lineas.reduce(function(s,l){ return s + l.cant*l.precio; }, 0);
+      var nuevaCompra = {
+        id: "manual-" + Date.now(),
+        numero: "Manual-" + new Date().toLocaleDateString("es-ES"),
+        fecha: new Date().toISOString().slice(0,10),
+        total: total,
+        estado: "confirmada",
+        tipo_documento: "manual",
+        proveedor_id: provId || "manual",
+        proveedores: { nombre: provNombre }
+      };
+      DEMO.compras.unshift(nuevaCompra);
+      DEMO.compraLineas[nuevaCompra.id] = [];
+
+      wait(null, 250).then(function(){
+        toast("Compra manual guardada.", "ok");
+        box.innerHTML = "";
+        cargarCompras();
+      });
+    });
+  });
 
   function renderProductoForm(l){
     return '<div class="lineitem" data-prod-form data-linea="'+l.id+'" data-texto="'+esc(l.texto_original)+'">' +
