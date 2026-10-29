@@ -149,6 +149,15 @@ nav.tabs button.active{color:var(--accent)}
 .authtabs button{flex:1; border:none; background:none; padding:9px; border-radius:8px; font-weight:700; font-size:.85rem; color:var(--muted); cursor:pointer; font-family:inherit}
 .authtabs button.active{background:var(--surface); color:var(--fg)}
 [hidden]{display:none!important}
+.modal-overlay{position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.45);
+  display:flex; align-items:flex-end; justify-content:center}
+@media (min-width:560px){ .modal-overlay{ align-items:center } }
+.modal-sheet{background:var(--bg); width:100%; max-width:528px; max-height:88vh; overflow-y:auto;
+  border-radius:18px 18px 0 0; padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));
+  box-shadow:0 -8px 30px rgba(0,0,0,.25)}
+@media (min-width:560px){ .modal-sheet{ border-radius:18px; max-height:80vh } }
+.modal-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;
+  position:sticky; top:-18px; background:var(--bg); padding-top:18px; margin-top:-18px; z-index:2}
 .ac-wrap{position:relative}
 .ac-list{position:absolute; left:0; right:0; top:100%; margin-top:4px; z-index:30;
   background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden;
@@ -296,6 +305,16 @@ body{padding-top:28px}
       <button data-view="negocio" type="button"><span class="ic">●</span>Negocio</button>
     </div>
   </nav>
+
+  <div class="modal-overlay" id="modalOverlay" hidden>
+    <div class="modal-sheet">
+      <div class="modal-head">
+        <h2 id="modalTitle" style="margin:0">Revisar compra</h2>
+        <button class="iconbtn" id="modalClose" type="button" title="Cerrar">✕</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
 
 </div>
 
@@ -548,6 +567,21 @@ body{padding-top:28px}
     btn.textContent = loading ? (labelLoading||"Un momento…") : (labelNormal||btn.dataset.label||btn.textContent);
   }
 
+  // ---------- MODAL (ventana única para revisar/corregir una compra) ----------
+  function openModal(title){
+    $("modalTitle").textContent = title || "Revisar compra";
+    $("modalBody").innerHTML = '<div class="empty"><span class="spin"></span></div>';
+    $("modalOverlay").hidden = false;
+    document.body.style.overflow = "hidden";
+  }
+  function closeModal(){
+    $("modalOverlay").hidden = true;
+    $("modalBody").innerHTML = "";
+    document.body.style.overflow = "";
+  }
+  $("modalClose").addEventListener("click", closeModal);
+  $("modalOverlay").addEventListener("click", function(e){ if (e.target === $("modalOverlay")) closeModal(); });
+
   // ---------- AUTH ----------
   var authMode = "in";
   $("tabIn").addEventListener("click", function(){ authMode="in"; $("tabIn").classList.add("active"); $("tabUp").classList.remove("active"); $("authSubmit").textContent="Entrar"; });
@@ -692,7 +726,14 @@ body{padding-top:28px}
   qsa("nav.tabs button").forEach(function(b){
     b.addEventListener("click", function(){ irA(b.dataset.view); });
   });
-  $("irARevisar").addEventListener("click", function(){ irA("compras"); });
+  $("irARevisar").addEventListener("click", function(){
+    irA("compras");
+    var pendiente = DEMO.compras.find(function(c){ return c.estado === "revisar"; });
+    if (pendiente){
+      openModal((pendiente.proveedores ? pendiente.proveedores.nombre : "Proveedor sin identificar"));
+      mostrarResolver(pendiente.id, $("modalBody"));
+    }
+  });
 
   function activarVista(id){
     qsa(".view").forEach(function(v){ v.classList.remove("active"); });
@@ -1063,7 +1104,6 @@ body{padding-top:28px}
   // ---------- COMPRAS ----------
   function cargarCompras(){
     var el = $("comprasList");
-    $("resolverBoxCompras").innerHTML = "";
     sb.from("compras").select("id,numero,fecha,total,estado,tipo_documento,proveedores(nombre)")
       .eq("negocio_id", state.negocioId).order("creado_en",{ascending:false}).limit(30)
       .then(function(r){
@@ -1072,17 +1112,15 @@ body{padding-top:28px}
         if (!rows.length){ el.innerHTML = '<div class="empty">Aún no hay compras. Sube tu primer documento.</div>'; return; }
         el.innerHTML = rows.map(function(c){
           var prov = c.proveedores ? c.proveedores.nombre : "Sin proveedor";
-          return '<div class="lineitem" data-compra="'+c.id+'" style="cursor:pointer">' +
+          return '<div class="lineitem" data-compra="'+c.id+'" data-nombre="'+esc(prov)+'" style="cursor:pointer">' +
             '<div class="row between"><span class="txt">'+esc(prov)+'</span><span class="chip '+c.estado+'">'+c.estado+'</span></div>' +
             '<div class="meta">'+fecha(c.fecha)+' · '+esc(c.numero||c.tipo_documento)+' · '+eur(c.total)+'</div>' +
             '</div>';
         }).join("");
         qsa("[data-compra]", el).forEach(function(card){
           card.addEventListener("click", function(){
-            qsa("[data-compra]", el).forEach(function(c){ c.style.outline=""; });
-            card.style.outline = "2px solid var(--focus)";
-            mostrarResolver(card.dataset.compra, $("resolverBoxCompras"));
-            $("resolverBoxCompras").scrollIntoView({behavior:"smooth", block:"nearest"});
+            openModal(card.dataset.nombre);
+            mostrarResolver(card.dataset.compra, $("modalBody"), cargarCompras);
           });
         });
       });
