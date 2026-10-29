@@ -1087,26 +1087,6 @@ body{padding-top:28px}
         }).join("");
       }
     },
-    ventas_dia: {
-      nombre: "Ventas por día", conFecha: true,
-      render: function(desde, hasta){
-        var rows = DEMO.ventas.filter(function(v){ return enRango(v.fecha, desde, hasta); })
-          .slice().sort(function(a,b){ return a.fecha < b.fecha ? 1 : -1; });
-        if (!rows.length) return '<div class="empty">Sin ventas en el periodo.</div>';
-        var total = rows.reduce(function(s,v){ return s + (v.total||0); }, 0);
-        return rows.map(function(v){
-          return '<div class="lineitem" data-vd-venta="'+v.id+'" style="cursor:pointer">' +
-            '<div class="row between"><span class="txt">'+fecha(v.fecha)+' · '+esc(v.numero||v.tipo_documento)+'</span><span class="chip '+v.estado+'">'+v.estado+'</span></div>' +
-            '<div class="meta">'+eur(v.total)+'</div></div>';
-        }).join("") +
-          '<div class="statline" style="margin-top:4px"><span class="k" style="font-weight:700">Total</span><span class="v rtotal">'+eur(total)+'</span></div>';
-      },
-      wire: function(body){
-        qsa("[data-vd-venta]", body).forEach(function(el){
-          el.addEventListener("click", function(){ abrirVenta(el.dataset.vdVenta); });
-        });
-      }
-    },
     rentabilidad: {
       nombre: "Rentabilidad de platos", conFecha: true,
       render: function(desde, hasta){
@@ -1139,6 +1119,101 @@ body{padding-top:28px}
       '<div class="cmpdetail"><span class="'+izqCls+'">'+izqLabel+'</span><span style="color:var(--muted)">→</span><span class="'+derCls+'">'+derLabel+'</span></div>' +
       '<div class="meta" style="margin:2px 0 0">'+provLine+'</div>' +
     '</div>';
+  }
+
+  // ---------- VENTAS POR DÍA: día -> tickets de ese día -> detalle del ticket (solo informativo) ----------
+  // Los tickets vienen del programa de ventas (TPV); aquí solo se consultan, nunca se editan.
+  function abrirVentasDia(){
+    openModal("Ventas por día");
+    renderVentasDiaNivelDias();
+  }
+
+  function renderVentasDiaNivelDias(){
+    var hoy = new Date().toISOString().slice(0,10);
+    var hace30 = new Date(Date.now() - 30*86400000).toISOString().slice(0,10);
+    $("modalTitle").textContent = "Ventas por día";
+    var html =
+      '<div class="reportparams">' +
+        '<div><label>Desde</label><input type="date" id="vdDesde" value="'+hace30+'"></div>' +
+        '<div><label>Hasta</label><input type="date" id="vdHasta" value="'+hoy+'"></div>' +
+      '</div>' +
+      '<div id="vdBody"></div>';
+    $("modalBody").innerHTML = html;
+
+    function pintar(){
+      var d = $("vdDesde").value, h = $("vdHasta").value;
+      var rows = DEMO.ventas.filter(function(v){ return enRango(v.fecha, d, h); });
+      var body = $("vdBody");
+      if (!rows.length){ body.innerHTML = '<div class="empty">Sin ventas en el periodo.</div>'; return; }
+      var porDia = {};
+      rows.forEach(function(v){
+        if (!porDia[v.fecha]) porDia[v.fecha] = { fecha: v.fecha, total: 0, n: 0 };
+        porDia[v.fecha].total += v.total || 0;
+        porDia[v.fecha].n++;
+      });
+      var dias = Object.keys(porDia).sort().reverse();
+      var totalGeneral = dias.reduce(function(s,f){ return s + porDia[f].total; }, 0);
+      body.innerHTML = dias.map(function(f){
+        var d2 = porDia[f];
+        return '<div class="lineitem" data-vd-dia="'+f+'" style="cursor:pointer">' +
+          '<div class="row between"><span class="txt">'+fecha(f)+'</span><span class="meta" style="margin:0">'+eur(d2.total)+'</span></div>' +
+          '<div class="meta">'+d2.n+' ticket'+(d2.n===1?"":"s")+'</div></div>';
+      }).join("") +
+        '<div class="statline" style="margin-top:4px"><span class="k" style="font-weight:700">Total</span><span class="v rtotal">'+eur(totalGeneral)+'</span></div>';
+      qsa("[data-vd-dia]", body).forEach(function(el){
+        el.addEventListener("click", function(){ renderVentasDiaNivelTickets(el.dataset.vdDia); });
+      });
+    }
+    pintar();
+    $("vdDesde").addEventListener("change", pintar);
+    $("vdHasta").addEventListener("change", pintar);
+  }
+
+  function renderVentasDiaNivelTickets(diaFecha){
+    $("modalTitle").textContent = fecha(diaFecha);
+    var rows = DEMO.ventas.filter(function(v){ return v.fecha === diaFecha; })
+      .slice().sort(function(a,b){ return (a.numero||"") < (b.numero||"") ? -1 : 1; });
+    var html = '<button class="btn ghost sm" id="vdVolverDias" type="button" style="width:auto; margin-bottom:14px">← Todos los días</button>';
+    if (!rows.length){
+      html += '<div class="empty">Sin tickets ese día.</div>';
+    } else {
+      html += rows.map(function(v){
+        return '<div class="lineitem" data-vd-ticket="'+v.id+'" style="cursor:pointer">' +
+          '<div class="row between"><span class="txt">'+esc(v.numero||v.tipo_documento)+'</span><span class="chip '+v.estado+'">'+v.estado+'</span></div>' +
+          '<div class="meta">'+eur(v.total)+'</div></div>';
+      }).join("");
+    }
+    $("modalBody").innerHTML = html;
+    $("vdVolverDias").addEventListener("click", renderVentasDiaNivelDias);
+    qsa("[data-vd-ticket]", $("modalBody")).forEach(function(el){
+      el.addEventListener("click", function(){ renderVentasDiaNivelDetalle(el.dataset.vdTicket, diaFecha); });
+    });
+  }
+
+  function renderVentasDiaNivelDetalle(id, diaFecha){
+    var v = DEMO.ventas.find(function(x){ return x.id === id; });
+    if (!v) return;
+    $("modalTitle").textContent = v.numero || v.tipo_documento;
+    var lineas = DEMO.ventaLineas[id] || [];
+    var html =
+      '<button class="btn ghost sm" id="vdVolverTickets" type="button" style="width:auto; margin-bottom:14px">← '+fecha(diaFecha)+'</button>' +
+      '<div class="card tight stack" style="margin-bottom:10px">' +
+        '<div class="row between"><span class="txt" style="margin:0">'+esc(v.numero||v.tipo_documento)+'</span><span class="chip '+v.estado+'">'+v.estado+'</span></div>' +
+        '<div class="meta" style="margin:0">'+fecha(v.fecha)+' · '+eur(v.total)+'</div>' +
+      '</div>' +
+      '<div class="readonly-note">🔒 Dato del programa de ventas: solo consulta, no se puede modificar aquí.</div>' +
+      '<h2>Líneas vendidas</h2>';
+    if (!lineas.length){
+      html += '<div class="empty">Sin líneas registradas.</div>';
+    } else {
+      html += lineas.map(function(l){
+        var nombre = l.nombre || l.texto_original;
+        return '<div class="statline"><span class="k">'+esc(nombre)+'</span>' +
+          '<span class="v">'+l.cantidad+' ud · '+eur(l.precio_unitario)+'/ud</span></div>';
+      }).join("");
+    }
+    $("modalBody").innerHTML = html;
+    $("vdVolverTickets").addEventListener("click", function(){ renderVentasDiaNivelTickets(diaFecha); });
   }
 
   // ---------- COMPRAS POR PROVEEDOR: informe único (fecha + proveedor, ambos opcionales) y en cadena ----------
@@ -1296,6 +1371,7 @@ body{padding-top:28px}
   function abrirInforme(id){
     if (id === "compras_proveedor") return abrirComprasProveedor();
     if (id === "mov_familia") return abrirMovimientoFamilia();
+    if (id === "ventas_dia") return abrirVentasDia();
     var def = INFORMES[id];
     if (!def) return;
     openModal(def.nombre);
