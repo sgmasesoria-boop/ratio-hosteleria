@@ -149,6 +149,14 @@ nav.tabs button.active{color:var(--accent)}
 .authtabs button{flex:1; border:none; background:none; padding:9px; border-radius:8px; font-weight:700; font-size:.85rem; color:var(--muted); cursor:pointer; font-family:inherit}
 .authtabs button.active{background:var(--surface); color:var(--fg)}
 [hidden]{display:none!important}
+.ac-wrap{position:relative}
+.ac-list{position:absolute; left:0; right:0; top:100%; margin-top:4px; z-index:30;
+  background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden;
+  box-shadow:0 8px 20px rgba(0,0,0,.12)}
+.ac-item{padding:9px 12px; font-size:.88rem; cursor:pointer; display:flex; justify-content:space-between; gap:8px; align-items:center}
+.ac-item:hover, .ac-item.active{background:var(--surface-2)}
+.ac-item .ac-src{font-size:.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; flex:none}
+.ac-item.ac-new{color:var(--focus); font-weight:600}
 .demobar{position:fixed; top:0; left:0; right:0; z-index:99; background:var(--accent); color:var(--accent-ink);
   text-align:center; font-size:.72rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
   padding:5px 0; padding-top:calc(5px + env(safe-area-inset-top,0px))}
@@ -337,6 +345,97 @@ body{padding-top:28px}
       ]
     }
   };
+
+  // ---------- Catálogo de referencia (muestra de la base de ~1.370 artículos / 80 proveedores que ya tienes en Supabase) ----------
+  var CATALOGO_PRODUCTOS = [
+    "COCA-COLA", "COCA-COLA ZERO", "COCA-COLA ZERO ZERO", "COCA-COLA LIGHT", "COLA CAO",
+    "FANTA NARANJA", "FANTA LIMON", "SPRITE", "PEPSI", "SEVEN UP", "NESTEA LIMON", "AQUARIUS NARANJA",
+    "CERVEZA ALHAMBRA BARRIL 30L", "CERVEZA CRUZCAMPO BARRIL 30L", "CERVEZA CORONA 33CL", "CERVEZA CORONITA",
+    "VINO EL COTO CRIANZA", "AGUA MINERAL 50CL", "AGUA CON GAS 33CL",
+    "GAMBA BLANCA CONGELADA 2KG", "JAMON IBERICO BELLOTA", "LOMO IBERICO", "QUESO MANCHEGO CURADO",
+    "ACEITE DE OLIVA VIRGEN EXTRA 5L", "PATATA AGRIA 25KG", "CEBOLLA KG", "LIMON 1A KG", "TOMATE PERA KG",
+    "PAN DE PUEBLO", "PAN RUSTICO BARRA", "CROQUETA DE JAMON CONGELADA", "CALAMAR A LA ANDALUZA",
+    "SERVILLETA PAPEL 30X30", "VASO SIDRA 25CL", "COPA DE VINO 42CL", "PAJITA PAPEL CJ 250"
+  ];
+  var CATALOGO_PROVEEDORES = [
+    "Distribuciones Hosteleras Granada SL", "Pescados Costa Tropical", "Carnes Sierra Nevada",
+    "Bebidas Alpujarra", "Coca-Cola European Partners", "Mahou San Miguel", "Cervezas Alhambra",
+    "Makro Autoservicio Mayorista", "Hijos de Rivera (Estrella Galicia)", "Panadería San Antón",
+    "Frutas y Verduras El Zaidín", "Suministros Hosteleros del Sur"
+  ];
+  var ALIAS = {
+    "coke": "coca-cola", "cocacola": "coca-cola", "coca cola": "coca-cola",
+    "coke zero": "coca-cola zero", "cocacola zero": "coca-cola zero",
+    "pepsi cola": "pepsi", "7up": "seven up"
+  };
+
+  function norm(s){ return (s||"").toLowerCase().trim(); }
+  function trigramas(s){
+    s = " " + norm(s) + " ";
+    var out = [];
+    for (var i=0; i<s.length-2; i++) out.push(s.slice(i,i+3));
+    return out;
+  }
+  function similitud(a, b){
+    var ta = trigramas(a), tb = trigramas(b);
+    if (!ta.length || !tb.length) return 0;
+    var setB = tb.slice();
+    var comunes = 0;
+    ta.forEach(function(t){
+      var idx = setB.indexOf(t);
+      if (idx > -1){ comunes++; setB.splice(idx,1); }
+    });
+    return (2*comunes) / (ta.length + tb.length);
+  }
+  function sugerir(texto, propios, catalogo){
+    var t = norm(texto);
+    t = ALIAS[t] || t;
+    if (!t) return [];
+    var res = [];
+    (propios||[]).forEach(function(n){ res.push({ fuente:"propio", nombre:n, sim: similitud(t, norm(n)) }); });
+    (catalogo||[]).forEach(function(n){ res.push({ fuente:"catalogo", nombre:n, sim: similitud(t, norm(n)) }); });
+    return res.filter(function(r){ return r.sim > 0.12; }).sort(function(a,b){ return b.sim - a.sim; }).slice(0,6);
+  }
+
+  // Autocompletado genérico: engancha un <input> a una lista de sugerencias que aparece debajo
+  function wireAutocomplete(input, propiosFn, catalogo){
+    var wrap = document.createElement("div");
+    wrap.className = "ac-wrap";
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+    var list = document.createElement("div");
+    list.className = "ac-list";
+    list.hidden = true;
+    wrap.appendChild(list);
+    var timer = null;
+
+    input.addEventListener("input", function(){
+      clearTimeout(timer);
+      var texto = input.value;
+      if (texto.trim().length < 2){ list.hidden = true; return; }
+      timer = setTimeout(function(){
+        var res = sugerir(texto, propiosFn(), catalogo);
+        if (!res.length){
+          list.innerHTML = '<div class="ac-item ac-new">+ Crear "'+esc(texto.trim())+'" como nuevo</div>';
+        } else {
+          list.innerHTML = res.map(function(r){
+            return '<div class="ac-item" data-pick="'+esc(r.nombre)+'">'+esc(r.nombre)+
+              '<span class="ac-src">'+(r.fuente==="propio"?"ya lo tienes":"catálogo")+'</span></div>';
+          }).join("") + '<div class="ac-item ac-new" data-pick="'+esc(texto.trim())+'">+ Crear "'+esc(texto.trim())+'" como nuevo</div>';
+        }
+        list.hidden = false;
+        qsa(".ac-item", list).forEach(function(it){
+          it.addEventListener("mousedown", function(ev){
+            ev.preventDefault();
+            input.value = it.dataset.pick;
+            list.hidden = true;
+          });
+        });
+      }, 150);
+    });
+    input.addEventListener("blur", function(){ setTimeout(function(){ list.hidden = true; }, 150); });
+    input.addEventListener("focus", function(){ if (input.value.trim().length >= 2) input.dispatchEvent(new Event("input")); });
+  }
 
   function mockBuilder(table){
     var q = { table: table, filters: {}, single: false, count: null };
@@ -830,12 +929,14 @@ body{padding-top:28px}
         var o = document.createElement("option"); o.value = p.id; o.textContent = p.nombre; select.appendChild(o);
       });
     });
+    wireAutocomplete($("manualProvNuevo"), function(){ return DEMO.proveedores.map(function(p){ return p.nombre; }); }, CATALOGO_PROVEEDORES);
 
     function addLinea(){
       manualLineaN++;
       var row = document.createElement("div");
       row.className = "row";
       row.style.gap = "6px";
+      row.style.alignItems = "flex-start";
       row.dataset.linea = manualLineaN;
       row.innerHTML =
         '<input type="text" placeholder="Producto" data-ml-nombre style="flex:2">' +
@@ -844,6 +945,7 @@ body{padding-top:28px}
         '<button class="iconbtn" type="button" data-ml-quitar title="Quitar">✕</button>';
       $("manualLineas").appendChild(row);
       qs("[data-ml-quitar]", row).addEventListener("click", function(){ row.remove(); });
+      wireAutocomplete(qs("[data-ml-nombre]", row), function(){ return []; }, CATALOGO_PRODUCTOS);
     }
     addLinea();
     $("manualAddLinea").addEventListener("click", addLinea);
