@@ -170,6 +170,8 @@ nav.tabs button.active{color:var(--accent)}
   text-align:center; font-size:.72rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
   padding:5px 0; padding-top:calc(5px + env(safe-area-inset-top,0px))}
 body{padding-top:28px}
+.alertbar{background:var(--warn-bg); border:1px solid var(--warn); color:var(--warn); border-radius:12px; padding:12px 14px; margin-bottom:12px; font-size:.88rem}
+.alertbar b{color:inherit}
 </style>
 
 <div class="demobar">Modo demo · datos de ejemplo</div>
@@ -221,19 +223,57 @@ body{padding-top:28px}
       </div>
     </section>
 
-    <section id="inicioView" class="view">
-      <h1>Hoy en <span id="inicioNeg"></span></h1>
-      <p class="lead" id="inicioFecha"></p>
+    <section id="comprasView" class="view">
+      <h1>Compras</h1>
+      <p class="lead">Sube el documento o métela a mano. Lo pendiente de revisar aparece arriba del todo.</p>
 
-      <div class="card tight" id="pendientesCard" hidden>
-        <div class="row between">
-          <div>
-            <div style="font-weight:700" id="pendientesN"></div>
-            <div class="lead" style="margin:2px 0 0">documentos por revisar</div>
-          </div>
-          <button class="btn primary sm" id="irARevisar" type="button">Revisar</button>
+      <div class="alertbar" id="alertaSubidaCompras" hidden></div>
+
+      <div class="camera-cta" id="dropZoneCompras">
+        <div class="ic">📷</div>
+        <div style="font-weight:700; margin-bottom:6px">Foto de albarán, factura o ticket</div>
+        <div class="lead" style="margin:0 0 12px">En esta demo la lectura automática está simulada: verás un aviso. Para probar la pantalla de revisar usa un documento de la lista de abajo, o mete la compra a mano.</div>
+        <div class="upload-row">
+          <button class="btn primary" id="btnCamaraCompra" type="button">Hacer foto</button>
+          <button class="btn" id="btnGaleriaCompra" type="button">Elegir archivo</button>
         </div>
       </div>
+      <input type="file" id="fileCamaraCompra" accept="image/*" capture="environment" hidden>
+      <input type="file" id="fileGaleriaCompra" accept="image/*" hidden>
+      <div id="subirEstadoCompras" class="card" hidden></div>
+
+      <button class="btn" id="btnCompraManual" type="button" style="margin:12px 0">+ Meter compra a mano</button>
+      <div id="manualBox"></div>
+
+      <div id="comprasList" style="margin-top:6px"><div class="empty">Cargando…</div></div>
+    </section>
+
+    <section id="ventasView" class="view">
+      <h1>Ventas</h1>
+      <p class="lead">Carga el ticket Z, el resumen de ventas, o mételas a mano. Lo pendiente de revisar aparece arriba del todo.</p>
+
+      <div class="camera-cta" id="dropZoneVentas">
+        <div class="ic">📷</div>
+        <div style="font-weight:700; margin-bottom:6px">Foto del ticket Z o archivo de ventas</div>
+        <div class="lead" style="margin:0 0 12px">En esta demo la lectura automática está simulada: verás un aviso. Para probar la pantalla de revisar usa un documento de la lista de abajo, o mete la venta a mano.</div>
+        <div class="upload-row">
+          <button class="btn primary" id="btnCamaraVenta" type="button">Hacer foto</button>
+          <button class="btn" id="btnGaleriaVenta" type="button">Elegir archivo</button>
+        </div>
+      </div>
+      <input type="file" id="fileCamaraVenta" accept="image/*" capture="environment" hidden>
+      <input type="file" id="fileGaleriaVenta" accept="image/*,.csv,.xls,.xlsx" hidden>
+      <div id="subirEstadoVentas" class="card" hidden></div>
+
+      <button class="btn" id="btnVentaManual" type="button" style="margin:12px 0">+ Meter venta a mano</button>
+      <div id="manualBoxVenta"></div>
+
+      <div id="ventasList" style="margin-top:6px"><div class="empty">Cargando…</div></div>
+    </section>
+
+    <section id="infoView" class="view">
+      <h1>Información</h1>
+      <p class="lead" id="infoFecha"></p>
 
       <div class="card">
         <h2>Subidas de precio recientes</h2>
@@ -246,43 +286,27 @@ body{padding-top:28px}
       </div>
 
       <div class="card">
-        <h2>Conteo de esta semana</h2>
-        <div id="conteoList"><div class="empty">Cargando…</div></div>
+        <h2>Rentabilidad de platos</h2>
+        <div id="rentabilidadList"><div class="empty">Cargando…</div></div>
       </div>
-    </section>
 
-    <section id="subirView" class="view">
-      <h1>Subir documento</h1>
-      <p class="lead">Vale para albarán, factura, abono (nota de crédito) o ticket. Haz la foto plana y con buena luz; la IA lee proveedor, líneas y precios.</p>
-      <div class="camera-cta" id="dropZone">
-        <div class="ic">📷</div>
-        <div style="font-weight:700; margin-bottom:12px">Foto del documento de compra</div>
-        <div class="upload-row">
-          <button class="btn primary" id="btnCamara" type="button">Hacer foto</button>
-          <button class="btn" id="btnGaleria" type="button">Elegir archivo</button>
-        </div>
+      <div class="card">
+        <h2>Movimiento por familia</h2>
+        <div id="movFamiliaList"><div class="empty">Cargando…</div></div>
       </div>
-      <input type="file" id="fileCamara" accept="image/*" capture="environment" hidden>
-      <input type="file" id="fileGaleria" accept="image/*" hidden>
 
-      <div id="subirEstado" class="card" hidden></div>
-      <div id="resolverBox"></div>
-    </section>
-
-    <section id="comprasView" class="view">
-      <div class="row between" style="margin-bottom:4px">
-        <h1 style="margin-bottom:0">Compras</h1>
-        <button class="btn primary sm" id="btnCompraManual" type="button">+ Compra manual</button>
+      <div class="card">
+        <h2>Movimiento por proveedor</h2>
+        <div id="movProveedorList"><div class="empty">Cargando…</div></div>
       </div>
-      <p class="lead">Últimos albaranes, facturas y tickets registrados.</p>
-      <div id="manualBox"></div>
-      <div id="comprasList"><div class="empty">Cargando…</div></div>
-      <div id="resolverBoxCompras"></div>
-    </section>
 
-    <section id="negocioView" class="view">
-      <h1 id="negTitulo">Negocio</h1>
+      <div class="card">
+        <h2>Resumen de facturas y albaranes</h2>
+        <div id="resumenDocsBox"><div class="empty">Cargando…</div></div>
+      </div>
+
       <div class="card stack">
+        <h2 id="negTitulo" style="margin:0">Negocio</h2>
         <div class="statline"><span class="k">Licencia</span><span class="v" id="negLicencia">—</span></div>
         <div class="statline"><span class="k">Usuarios máx.</span><span class="v" id="negMaxUsuarios">—</span></div>
         <div class="statline"><span class="k">Proveedores</span><span class="v" id="negProveedores">—</span></div>
@@ -295,21 +319,27 @@ body{padding-top:28px}
       <button class="btn danger" id="logoutBtn2" type="button" style="margin-top:4px">Cerrar sesión</button>
     </section>
 
+    <section id="almacenView" class="view">
+      <h1>Almacén e inventario</h1>
+      <p class="lead">Lo que debería haber según tu ritmo de consumo. Corrígelo a mano si el conteo real es distinto.</p>
+      <div id="inventarioList"><div class="empty">Cargando…</div></div>
+    </section>
+
   </main>
 
   <nav class="tabs" id="tabs" hidden>
     <div class="inner">
-      <button data-view="inicio" class="active" type="button"><span class="ic">◆</span>Inicio</button>
-      <button data-view="subir" type="button"><span class="ic">📷</span>Subir</button>
-      <button data-view="compras" type="button"><span class="ic">▤</span>Compras</button>
-      <button data-view="negocio" type="button"><span class="ic">●</span>Negocio</button>
+      <button data-view="compras" class="active" type="button"><span class="ic">▤</span>Compras</button>
+      <button data-view="ventas" type="button"><span class="ic">💶</span>Ventas</button>
+      <button data-view="info" type="button"><span class="ic">ⓘ</span>Información</button>
+      <button data-view="almacen" type="button"><span class="ic">📦</span>Almacén</button>
     </div>
   </nav>
 
   <div class="modal-overlay" id="modalOverlay" hidden>
     <div class="modal-sheet">
       <div class="modal-head">
-        <h2 id="modalTitle" style="margin:0">Revisar compra</h2>
+        <h2 id="modalTitle" style="margin:0">Revisar</h2>
         <button class="iconbtn" id="modalClose" type="button" title="Cerrar">✕</button>
       </div>
       <div id="modalBody"></div>
@@ -327,7 +357,6 @@ body{padding-top:28px}
 
   var DEMO = {
     negocio: { id: "demo-negocio", nombre: "Bar de Pruebas (demo)", licencia_estado: "activa", max_usuarios: 3 },
-    pendientes: 2,
     subidas: [
       { nombre: "Gambas blancas congeladas", subida_pct: 14, impacto_90d_eur: 186.40 },
       { nombre: "Jamón ibérico de bellota", subida_pct: 9, impacto_90d_eur: 142.10 },
@@ -337,12 +366,29 @@ body{padding-top:28px}
       { nombre: "Cerveza de barril", ahorro_pct: 11 },
       { nombre: "Refrescos (lata)", ahorro_pct: 7 }
     ],
-    conteo: [
-      { nombre: "Gambas blancas", zona: "Cámara" },
-      { nombre: "Jamón ibérico", zona: "Cámara" },
-      { nombre: "Patatas", zona: "Almacén" },
-      { nombre: "Aceite de oliva", zona: "Almacén" },
-      { nombre: "Cerveza de barril", zona: "Barra" }
+    rentabilidad: [
+      { plato: "Hamburguesa Casa", coste: 3.80, pvp: 11.50, margen_pct: 67 },
+      { plato: "Ensaladilla Rusa", coste: 1.90, pvp: 6.50, margen_pct: 71 },
+      { plato: "Gambas al ajillo", coste: 5.40, pvp: 12.90, margen_pct: 58 }
+    ],
+    movFamilia: [
+      { familia: "Pescados y mariscos", total: 1840.20 },
+      { familia: "Carnes y embutidos", total: 1210.60 },
+      { familia: "Bebidas", total: 980.40 },
+      { familia: "Frutas y verduras", total: 540.10 }
+    ],
+    movProveedor: [
+      { proveedor: "Distribuciones Hosteleras Granada SL", total: 2140.30 },
+      { proveedor: "Pescados Costa Tropical", total: 980.50 },
+      { proveedor: "Carnes Sierra Nevada", total: 710.20 }
+    ],
+    resumenDocs: { mes: "Octubre 2026", nAlbaranes: 14, nFacturas: 6, nTickets: 3, totalCompras: 4572.60, totalVentas: 15230.40 },
+    inventario: [
+      { id: "i1", nombre: "Gambas blancas", zona: "Cámara", esperado: 6, unidad: "kg" },
+      { id: "i2", nombre: "Jamón ibérico", zona: "Cámara", esperado: 3, unidad: "kg" },
+      { id: "i3", nombre: "Patatas", zona: "Almacén", esperado: 40, unidad: "kg" },
+      { id: "i4", nombre: "Aceite de oliva", zona: "Almacén", esperado: 15, unidad: "l" },
+      { id: "i5", nombre: "Cerveza de barril", zona: "Barra", esperado: 2, unidad: "barril" }
     ],
     proveedoresCount: 4,
     productosCount: 29,
@@ -351,6 +397,10 @@ body{padding-top:28px}
       { id: "p2", nombre: "Pescados Costa Tropical" },
       { id: "p3", nombre: "Carnes Sierra Nevada" },
       { id: "p4", nombre: "Bebidas Alpujarra" }
+    ],
+    platos: [
+      { id: "pl1", nombre: "Hamburguesa Casa" },
+      { id: "pl2", nombre: "Ensaladilla Rusa" }
     ],
     compras: [
       { id: "c1", numero: "A-2026-0931", fecha: "2026-10-15", total: 612.40, estado: "confirmada", tipo_documento: "albaran", proveedores: { nombre: "Distribuciones Hosteleras Granada SL" } },
@@ -361,6 +411,16 @@ body{padding-top:28px}
       c2: [
         { id: "l1", texto_original: "GAMBA BLANCA CONG 2KG", unidad_compra: "kg", cantidad: 2, precio_unitario: 14.9, codigo: "GB-2K" },
         { id: "l2", texto_original: "LIMON 1A KG", unidad_compra: "kg", cantidad: 5, precio_unitario: 1.3, codigo: null }
+      ]
+    },
+    ventas: [
+      { id: "v1", numero: "TK-Z-2026-10-28", fecha: "2026-10-28", total: 842.10, estado: "confirmada", tipo_documento: "ticket_z" },
+      { id: "v2", numero: "TK-Z-2026-10-27", fecha: "2026-10-27", total: 695.30, estado: "revisar", tipo_documento: "ticket_z" }
+    ],
+    ventaLineas: {
+      v2: [
+        { id: "vl1", texto_original: "HAMBURGUESA CASA", cantidad: 9, precio_unitario: 11.5 },
+        { id: "vl2", texto_original: "CANA ALHAMBRA", cantidad: 38, precio_unitario: 2.4 }
       ]
     }
   };
@@ -381,6 +441,10 @@ body{padding-top:28px}
     "Bebidas Alpujarra", "Coca-Cola European Partners", "Mahou San Miguel", "Cervezas Alhambra",
     "Makro Autoservicio Mayorista", "Hijos de Rivera (Estrella Galicia)", "Panadería San Antón",
     "Frutas y Verduras El Zaidín", "Suministros Hosteleros del Sur"
+  ];
+  var CATALOGO_PLATOS = [
+    "HAMBURGUESA CASA", "ENSALADILLA RUSA", "GAMBAS AL AJILLO", "CROQUETAS DE JAMON",
+    "PATATAS BRAVAS", "CALAMARES A LA ANDALUZA", "SOLOMILLO AL WHISKY", "TARTA DE QUESO"
   ];
   var ALIAS = {
     "coke": "coca-cola", "cocacola": "coca-cola", "coca cola": "coca-cola",
@@ -416,7 +480,9 @@ body{padding-top:28px}
     return res.filter(function(r){ return r.sim > 0.12; }).sort(function(a,b){ return b.sim - a.sim; }).slice(0,6);
   }
 
-  // Autocompletado genérico: engancha un <input> a una lista de sugerencias que aparece debajo
+  // Autocompletado genérico: engancha un <input> a una lista de sugerencias que aparece debajo.
+  // Es el único método para elegir proveedor/producto/plato: busca mientras escribes entre lo que
+  // ya tienes y el catálogo de referencia; si no existe, "+ Crear ... como nuevo" lo da de alta solo.
   function wireAutocomplete(input, propiosFn, catalogo){
     var wrap = document.createElement("div");
     wrap.className = "ac-wrap";
@@ -456,6 +522,16 @@ body{padding-top:28px}
     input.addEventListener("focus", function(){ if (input.value.trim().length >= 2) input.dispatchEvent(new Event("input")); });
   }
 
+  // Dado un texto escrito, busca un proveedor existente por nombre exacto (normalizado);
+  // si no existe, lo trata como uno nuevo a crear. Mismo criterio para "buscar cliente en el CRM,
+  // y si no existe, crearlo".
+  function resolverProveedorPorTexto(texto){
+    var t = norm(texto);
+    var existente = DEMO.proveedores.find(function(p){ return norm(p.nombre) === t; });
+    if (existente) return { id: existente.id, nombre: existente.nombre, nuevo: false };
+    return { id: null, nombre: texto.trim(), nuevo: true };
+  }
+
   function mockBuilder(table){
     var q = { table: table, filters: {}, single: false, count: null };
     var b = {
@@ -475,11 +551,17 @@ body{padding-top:28px}
       case "negocios":
         return wait({ data: [DEMO.negocio], error: null });
       case "compras":
-        if (q.count) return wait({ data: null, error: null, count: DEMO.pendientes });
+        if (q.count) return wait({ data: null, error: null, count: DEMO.compras.filter(function(c){ return c.estado==="revisar"; }).length });
         if (q.single) return wait({ data: DEMO.compras.find(function(c){ return c.id===q.filters.id; }) || null, error: null });
         return wait({ data: DEMO.compras, error: null });
       case "compra_lineas":
         return wait({ data: DEMO.compraLineas[q.filters.compra_id] || [], error: null });
+      case "ventas":
+        if (q.count) return wait({ data: null, error: null, count: DEMO.ventas.filter(function(v){ return v.estado==="revisar"; }).length });
+        if (q.single) return wait({ data: DEMO.ventas.find(function(v){ return v.id===q.filters.id; }) || null, error: null });
+        return wait({ data: DEMO.ventas, error: null });
+      case "venta_lineas":
+        return wait({ data: DEMO.ventaLineas[q.filters.venta_id] || [], error: null });
       case "v_impacto_subidas":
         return wait({ data: DEMO.subidas, error: null });
       case "v_ahorro_proveedor":
@@ -507,7 +589,7 @@ body{padding-top:28px}
     from: mockBuilder,
     rpc: function(name, args){
       args = args || {};
-      if (name === "inventario_sugerido") return wait({ data: DEMO.conteo, error: null });
+      if (name === "inventario_sugerido") return wait({ data: DEMO.inventario, error: null });
       if (name === "sugerir_productos") return wait({ data: [], error: null });
       if (name === "resolver_proveedor"){
         var c = DEMO.compras.find(function(c){ return c.id === args.p_compra; });
@@ -536,13 +618,28 @@ body{padding-top:28px}
         if (cc) cc.estado = "confirmada";
         return wait({ data: null, error: null });
       }
+      if (name === "resolver_linea_venta"){
+        Object.keys(DEMO.ventaLineas).forEach(function(vid){
+          DEMO.ventaLineas[vid] = DEMO.ventaLineas[vid].filter(function(l){ return l.id !== args.p_linea; });
+        });
+        var tp = norm(args.p_nombre);
+        if (tp && !DEMO.platos.find(function(p){ return norm(p.nombre)===tp; })){
+          DEMO.platos.push({ id: "pl"+Date.now(), nombre: args.p_nombre });
+        }
+        return wait({ data: null, error: null });
+      }
+      if (name === "confirmar_venta"){
+        var cv = DEMO.ventas.find(function(v){ return v.id === args.p_venta; });
+        if (cv) cv.estado = "confirmada";
+        return wait({ data: null, error: null });
+      }
       return wait({ data: null, error: null });
     },
     storage: { from: function(){ return { upload: function(){ return wait({ data: {}, error: null }); } }; } },
-    functions: { invoke: function(){ return wait({ data: { estado: "ilegible", mensaje: "Modo demo: la lectura de documentos no está activada en esta vista de prueba." }, error: null }); } }
+    functions: { invoke: function(){ return wait({ data: { estado: "ilegible", mensaje: "Modo demo: la lectura automática de documentos no está activada en esta vista de prueba." }, error: null }); } }
   };
 
-  var state = { session:null, negocios:[], negocioId:null, view:"inicio" };
+  var state = { session:null, negocios:[], negocioId:null, view:"compras" };
 
   function $(id){ return document.getElementById(id); }
   function qs(sel, root){ return (root||document).querySelector(sel); }
@@ -567,9 +664,9 @@ body{padding-top:28px}
     btn.textContent = loading ? (labelLoading||"Un momento…") : (labelNormal||btn.dataset.label||btn.textContent);
   }
 
-  // ---------- MODAL (ventana única para revisar/corregir una compra) ----------
+  // ---------- MODAL (ventana única para revisar/corregir una compra o una venta) ----------
   function openModal(title){
-    $("modalTitle").textContent = title || "Revisar compra";
+    $("modalTitle").textContent = title || "Revisar";
     $("modalBody").innerHTML = '<div class="empty"><span class="spin"></span></div>';
     $("modalOverlay").hidden = false;
     document.body.style.overflow = "hidden";
@@ -656,7 +753,7 @@ body{padding-top:28px}
       state.negocioId = elegido.id;
       $("negNombre").textContent = elegido.nombre;
       $("statusDot").classList.remove("off");
-      irA("inicio");
+      irA("compras");
       renderOtrosNegocios();
     });
   }
@@ -726,14 +823,6 @@ body{padding-top:28px}
   qsa("nav.tabs button").forEach(function(b){
     b.addEventListener("click", function(){ irA(b.dataset.view); });
   });
-  $("irARevisar").addEventListener("click", function(){
-    irA("compras");
-    var pendiente = DEMO.compras.find(function(c){ return c.estado === "revisar"; });
-    if (pendiente){
-      openModal((pendiente.proveedores ? pendiente.proveedores.nombre : "Proveedor sin identificar"));
-      mostrarResolver(pendiente.id, $("modalBody"));
-    }
-  });
 
   function activarVista(id){
     qsa(".view").forEach(function(v){ v.classList.remove("active"); });
@@ -744,66 +833,34 @@ body{padding-top:28px}
     state.view = view;
     qsa("nav.tabs button").forEach(function(b){ b.classList.toggle("active", b.dataset.view===view); });
     activarVista(view+"View");
-    if (view==="inicio") cargarInicio();
     if (view==="compras") cargarCompras();
-    if (view==="negocio") cargarNegocioInfo();
+    if (view==="ventas") cargarVentas();
+    if (view==="info") cargarInfo();
+    if (view==="almacen") cargarAlmacen();
   }
 
-  // ---------- INICIO ----------
-  function cargarInicio(){
-    var neg = state.negocios.find(function(n){ return n.id===state.negocioId; });
-    $("inicioNeg").textContent = neg ? neg.nombre : "";
-    $("inicioFecha").textContent = new Date().toLocaleDateString("es-ES",{weekday:"long", day:"numeric", month:"long"});
-
-    sb.from("compras").select("id",{count:"exact",head:true}).eq("negocio_id", state.negocioId).eq("estado","revisar").then(function(r){
-      var n = r.count || 0;
-      $("pendientesCard").hidden = n===0;
-      $("pendientesN").textContent = n + (n===1 ? " documento" : " documentos");
-    });
-
-    sb.from("v_impacto_subidas").select("*").eq("negocio_id", state.negocioId).order("impacto_90d_eur",{ascending:false}).limit(5)
-      .then(function(r){
-        var el = $("subidasList");
-        var rows = r.data || [];
-        if (r.error || !rows.length){ el.innerHTML = '<div class="empty">Sin datos todavía.</div>'; return; }
-        el.innerHTML = rows.map(function(x){
-          return '<div class="statline"><span class="k">'+esc(x.nombre)+'</span>' +
-            '<span class="v up">+'+Number(x.subida_pct).toFixed(0)+'% · '+eur(x.impacto_90d_eur)+'</span></div>';
-        }).join("");
-      });
-
-    sb.from("v_ahorro_proveedor").select("*").eq("negocio_id", state.negocioId).order("ahorro_pct",{ascending:false}).limit(5)
-      .then(function(r){
-        var el = $("ahorroList");
-        var rows = r.data || [];
-        if (r.error || !rows.length){ el.innerHTML = '<div class="empty">Sin datos todavía.</div>'; return; }
-        el.innerHTML = rows.map(function(x){
-          return '<div class="statline"><span class="k">'+esc(x.nombre)+'</span>' +
-            '<span class="v down">-'+Number(x.ahorro_pct).toFixed(0)+'%</span></div>';
-        }).join("");
-      });
-
-    sb.rpc("inventario_sugerido", { p_negocio: state.negocioId, p_frecuencia: "semanal" }).then(function(r){
-      var el = $("conteoList");
-      var rows = (r.data || []).slice(0,8);
-      if (r.error || !rows.length){ el.innerHTML = '<div class="empty">Nada que contar esta semana.</div>'; return; }
-      el.innerHTML = rows.map(function(x){
-        return '<div class="statline"><span class="k">'+esc(x.nombre)+'</span><span class="v" style="color:var(--muted)">'+esc(x.zona||x.familia||"")+'</span></div>';
-      }).join("");
-    });
+  // ---------- AVISO DE SUBIDA DE PRECIO (al instante, en la propia pantalla de Compras) ----------
+  function pintarAlertaSubida(){
+    var box = $("alertaSubidaCompras");
+    if (!DEMO.subidas.length){ box.hidden = true; return; }
+    var x = DEMO.subidas[0];
+    box.hidden = false;
+    box.innerHTML = '<div class="row between" style="gap:10px">' +
+      '<span>⚠ <b>'+esc(x.nombre)+'</b> subió un '+Number(x.subida_pct).toFixed(0)+'% · impacto '+eur(x.impacto_90d_eur)+' en 90 días.</span>' +
+      '<button class="btn ghost sm" id="verInfoSubida" type="button" style="width:auto">Ver informe</button></div>';
+    $("verInfoSubida").addEventListener("click", function(){ irA("info"); });
   }
 
-  // ---------- SUBIR ----------
-  $("btnCamara").addEventListener("click", function(){ $("fileCamara").click(); });
-  $("btnGaleria").addEventListener("click", function(){ $("fileGaleria").click(); });
-  $("fileCamara").addEventListener("change", function(e){ if (e.target.files[0]) subirFoto(e.target.files[0]); e.target.value=""; });
-  $("fileGaleria").addEventListener("change", function(e){ if (e.target.files[0]) subirFoto(e.target.files[0]); e.target.value=""; });
+  // ---------- SUBIR: COMPRAS ----------
+  $("btnCamaraCompra").addEventListener("click", function(){ $("fileCamaraCompra").click(); });
+  $("btnGaleriaCompra").addEventListener("click", function(){ $("fileGaleriaCompra").click(); });
+  $("fileCamaraCompra").addEventListener("change", function(e){ if (e.target.files[0]) subirFotoCompra(e.target.files[0]); e.target.value=""; });
+  $("fileGaleriaCompra").addEventListener("change", function(e){ if (e.target.files[0]) subirFotoCompra(e.target.files[0]); e.target.value=""; });
 
-  function subirFoto(file, forzar){
-    var estado = $("subirEstado");
+  function subirFotoCompra(file, forzar){
+    var estado = $("subirEstadoCompras");
     estado.hidden = false;
     estado.innerHTML = '<div class="row"><span class="spin"></span><span>Subiendo foto…</span></div>';
-    $("resolverBox").innerHTML = "";
 
     var path = state.negocioId + "/" + Date.now() + "-" + file.name.replace(/[^a-zA-Z0-9.\-_]/g,"_");
     sb.storage.from("albaranes").upload(path, file, { contentType: file.type || "image/jpeg" }).then(function(up){
@@ -815,7 +872,8 @@ body{padding-top:28px}
           if (err){ estado.innerHTML = '<div style="color:var(--bad)">Error leyendo el documento. Inténtalo otra vez.</div>'; return; }
           if (data && data.error){ estado.innerHTML = '<div style="color:var(--bad)">'+esc(data.error)+'</div>'; return; }
           if (data.estado === "ilegible"){
-            estado.innerHTML = '<div style="color:var(--warn)">'+esc(data.mensaje)+'</div>';
+            estado.innerHTML = '<div style="color:var(--warn)">'+esc(data.mensaje)+'</div>' +
+              '<div class="lead" style="margin:8px 0 0">Prueba con un documento de la lista de abajo, o usa "Meter compra a mano".</div>';
             return;
           }
           if (data.estado === "duplicado"){
@@ -825,17 +883,44 @@ body{padding-top:28px}
           if (data.estado === "posible_duplicado"){
             estado.innerHTML = '<div style="margin-bottom:10px"><span class="chip dup">Posible duplicado</span> Ya hay una compra parecida.</div>' +
               '<button class="btn sm" id="forzarBtn" type="button">Subir igualmente</button>';
-            $("forzarBtn").addEventListener("click", function(){ subirFoto(file, true); });
+            $("forzarBtn").addEventListener("click", function(){ subirFotoCompra(file, true); });
             return;
           }
-          estado.innerHTML = '<div style="color:var(--good)">Documento guardado. '+
-            (data.estado==="lista_para_confirmar" ? "Todo reconocido, lista para confirmar." : "Faltan algunos datos por confirmar.") + '</div>';
-          mostrarResolver(data.compra_id, $("resolverBox"));
+          estado.innerHTML = '<div style="color:var(--good)">Documento guardado.</div>';
+          openModal("Revisar compra");
+          mostrarResolver(data.compra_id, $("modalBody"));
+          cargarCompras();
         });
     });
   }
 
-  // ---------- RESOLVER PENDIENTES (reutilizado en Subir y en Compras) ----------
+  // ---------- SUBIR: VENTAS ----------
+  $("btnCamaraVenta").addEventListener("click", function(){ $("fileCamaraVenta").click(); });
+  $("btnGaleriaVenta").addEventListener("click", function(){ $("fileGaleriaVenta").click(); });
+  $("fileCamaraVenta").addEventListener("change", function(e){ if (e.target.files[0]) subirFotoVenta(e.target.files[0]); e.target.value=""; });
+  $("fileGaleriaVenta").addEventListener("change", function(e){ if (e.target.files[0]) subirFotoVenta(e.target.files[0]); e.target.value=""; });
+
+  function subirFotoVenta(file){
+    var estado = $("subirEstadoVentas");
+    estado.hidden = false;
+    estado.innerHTML = '<div class="row"><span class="spin"></span><span>Subiendo…</span></div>';
+    var path = state.negocioId + "/" + Date.now() + "-" + file.name.replace(/[^a-zA-Z0-9.\-_]/g,"_");
+    sb.storage.from("ventas").upload(path, file, { contentType: file.type || "image/jpeg" }).then(function(up){
+      if (up.error){ estado.innerHTML = '<div style="color:var(--bad)">No se pudo subir: '+esc(up.error.message)+'</div>'; return; }
+      estado.innerHTML = '<div class="row"><span class="spin"></span><span>Leyendo el documento con IA…</span></div>';
+      return sb.functions.invoke("leer-ventas", { body: { negocio_id: state.negocioId, imagen_path: path } }).then(function(res){
+        var data = res.data;
+        if (data && data.estado === "ilegible"){
+          estado.innerHTML = '<div style="color:var(--warn)">'+esc(data.mensaje)+'</div>' +
+            '<div class="lead" style="margin:8px 0 0">Prueba con un documento de la lista de abajo, o usa "Meter venta a mano".</div>';
+          return;
+        }
+        estado.innerHTML = '<div style="color:var(--good)">Documento guardado.</div>';
+      });
+    });
+  }
+
+  // ---------- RESOLVER PENDIENTES DE COMPRA ----------
   function mostrarResolver(compraId, contenedor){
     contenedor.innerHTML = '<div class="empty"><span class="spin"></span></div>';
     Promise.all([
@@ -845,11 +930,12 @@ body{padding-top:28px}
       var compra = res[0].data, lineasPend = res[1].data || [];
       if (!compra){ contenedor.innerHTML = ""; return; }
 
+      function refrescar(){ mostrarResolver(compraId, contenedor); cargarCompras(); }
+
       var html = "";
       if (!compra.proveedor_id){
-        html += renderProveedorForm(compra);
+        html += renderProveedorForm();
       }
-      // una pregunta por texto+unidad distintos
       var vistos = {}, unicas = [];
       lineasPend.forEach(function(l){
         var k = (l.texto_original||"").toLowerCase()+"|"+(l.unidad_compra||"").toLowerCase();
@@ -872,68 +958,40 @@ body{padding-top:28px}
         sb.rpc("confirmar_compra", { p_compra: compraId }).then(function(r){
           if (r.error){ toast(r.error.message, "err"); setLoading(cb,false,null,"Confirmar compra"); return; }
           toast("Compra confirmada.", "ok");
-          mostrarResolver(compraId, contenedor);
-          cargarCompras();
+          refrescar();
         });
       });
 
-      wireProveedorForm(contenedor, compra, function(){ mostrarResolver(compraId, contenedor); });
-      wireProductoForm(contenedor, compra, function(){ mostrarResolver(compraId, contenedor); });
+      wireProveedorForm(contenedor, compra, refrescar);
+      wireProductoForm(contenedor, compra, refrescar);
     });
   }
 
-  function renderProveedorForm(compra){
+  function renderProveedorForm(){
     return '<div class="lineitem" data-prov-form>' +
       '<div class="txt">Proveedor sin identificar</div>' +
-      '<div class="meta">Asigna uno que ya tengas, o crea uno nuevo.</div>' +
-      '<select data-prov-select style="margin-bottom:8px"><option value="">Elige un proveedor…</option></select>' +
-      '<button class="btn primary sm" data-prov-asignar type="button">Asignar proveedor</button>' +
-      '<div style="border-top:1px solid var(--border); margin-top:12px; padding-top:12px">' +
-        '<button class="btn sm" data-prov-nuevo-toggle type="button">+ Crear proveedor nuevo</button>' +
-        '<div data-prov-nuevo-box hidden style="margin-top:8px">' +
-          '<input type="text" data-prov-nuevo placeholder="Nombre del proveedor nuevo" style="margin-bottom:8px">' +
-          '<button class="btn primary sm" data-prov-crear type="button">Crear y asignar</button>' +
-        '</div>' +
-      '</div>' +
+      '<div class="meta">Busca o escribe el proveedor. Si no existe, se crea solo al guardar.</div>' +
+      '<input type="text" data-prov-input placeholder="Nombre del proveedor" style="margin-bottom:8px">' +
+      '<button class="btn primary sm" data-prov-guardar type="button">Guardar proveedor</button>' +
       '</div>';
   }
 
   function wireProveedorForm(root, compra, onDone){
     var form = qs("[data-prov-form]", root);
     if (!form) return;
-    var select = qs("[data-prov-select]", form);
-    sb.from("proveedores").select("id,nombre").eq("negocio_id", state.negocioId).order("nombre").then(function(r){
-      (r.data||[]).forEach(function(p){
-        var o = document.createElement("option"); o.value = p.id; o.textContent = p.nombre; select.appendChild(o);
-      });
-    });
+    var input = qs("[data-prov-input]", form);
+    wireAutocomplete(input, function(){ return DEMO.proveedores.map(function(p){ return p.nombre; }); }, CATALOGO_PROVEEDORES);
 
-    qs("[data-prov-asignar]", form).addEventListener("click", function(){
+    qs("[data-prov-guardar]", form).addEventListener("click", function(){
       var btn = this;
-      if (!select.value){ toast("Elige un proveedor de la lista.", "err"); return; }
-      var texto = select.options[select.selectedIndex].textContent;
-      setLoading(btn, true, "Asignando…");
-      sb.rpc("resolver_proveedor", { p_compra: compra.id, p_texto_documento: texto, p_proveedor: select.value, p_nombre_nuevo: null, p_nif: null })
-        .then(function(r){
-          if (r.error){ toast(r.error.message, "err"); setLoading(btn,false,null,"Asignar proveedor"); return; }
-          toast("Proveedor asignado.", "ok");
-          onDone();
-        });
-    });
-
-    var toggleBtn = qs("[data-prov-nuevo-toggle]", form);
-    var nuevoBox = qs("[data-prov-nuevo-box]", form);
-    toggleBtn.addEventListener("click", function(){ nuevoBox.hidden = !nuevoBox.hidden; });
-
-    qs("[data-prov-crear]", form).addEventListener("click", function(){
-      var btn = this;
-      var nuevo = qs("[data-prov-nuevo]", form).value.trim();
-      if (!nuevo){ toast("Escribe el nombre del proveedor nuevo.", "err"); return; }
-      setLoading(btn, true, "Creando…");
-      sb.rpc("resolver_proveedor", { p_compra: compra.id, p_texto_documento: nuevo, p_proveedor: null, p_nombre_nuevo: nuevo, p_nif: null })
-        .then(function(r){
-          if (r.error){ toast(r.error.message, "err"); setLoading(btn,false,null,"Crear y asignar"); return; }
-          toast("Proveedor creado y asignado.", "ok");
+      var texto = input.value.trim();
+      if (!texto){ toast("Escribe el proveedor.", "err"); return; }
+      var r = resolverProveedorPorTexto(texto);
+      setLoading(btn, true, "Guardando…");
+      sb.rpc("resolver_proveedor", { p_compra: compra.id, p_texto_documento: texto, p_proveedor: r.id, p_nombre_nuevo: r.nuevo ? r.nombre : null, p_nif: null })
+        .then(function(res){
+          if (res.error){ toast(res.error.message, "err"); setLoading(btn,false,null,"Guardar proveedor"); return; }
+          toast(r.nuevo ? "Proveedor creado y asignado." : "Proveedor asignado.", "ok");
           onDone();
         });
     });
@@ -950,8 +1008,7 @@ body{padding-top:28px}
         '<h2 style="margin:0">Compra manual</h2>' +
         '<div>' +
           '<label>Proveedor</label>' +
-          '<select id="manualProvSelect" style="margin-bottom:6px"><option value="">Elige uno…</option></select>' +
-          '<input type="text" id="manualProvNuevo" placeholder="…o escribe uno nuevo">' +
+          '<input type="text" id="manualProvInput" placeholder="Busca o escribe el proveedor…">' +
         '</div>' +
         '<div>' +
           '<label>Artículos</label>' +
@@ -964,13 +1021,7 @@ body{padding-top:28px}
         '</div>' +
       '</div>';
 
-    var select = $("manualProvSelect");
-    sb.from("proveedores").select("id,nombre").eq("negocio_id", state.negocioId).order("nombre").then(function(r){
-      (r.data||[]).forEach(function(p){
-        var o = document.createElement("option"); o.value = p.id; o.textContent = p.nombre; select.appendChild(o);
-      });
-    });
-    wireAutocomplete($("manualProvNuevo"), function(){ return DEMO.proveedores.map(function(p){ return p.nombre; }); }, CATALOGO_PROVEEDORES);
+    wireAutocomplete($("manualProvInput"), function(){ return DEMO.proveedores.map(function(p){ return p.nombre; }); }, CATALOGO_PROVEEDORES);
 
     function addLinea(){
       manualLineaN++;
@@ -994,9 +1045,8 @@ body{padding-top:28px}
 
     $("manualGuardar").addEventListener("click", function(){
       var btn = this;
-      var provId = select.value;
-      var provNuevo = $("manualProvNuevo").value.trim();
-      if (!provId && !provNuevo){ toast("Indica el proveedor.", "err"); return; }
+      var provTexto = $("manualProvInput").value.trim();
+      if (!provTexto){ toast("Indica el proveedor.", "err"); return; }
 
       var lineas = qsa("#manualLineas > div").map(function(row){
         return {
@@ -1009,10 +1059,12 @@ body{padding-top:28px}
       if (!lineas.length){ toast("Añade al menos un artículo con cantidad y precio.", "err"); return; }
 
       setLoading(btn, true, "Guardando…");
-      var provNombre = provId ? select.options[select.selectedIndex].textContent : provNuevo;
-      if (!provId){
-        var nuevoProv = { id: "p" + Date.now(), nombre: provNuevo };
+      var r = resolverProveedorPorTexto(provTexto);
+      var provId = r.id;
+      if (r.nuevo){
+        var nuevoProv = { id: "p" + Date.now(), nombre: r.nombre };
         DEMO.proveedores.push(nuevoProv);
+        provId = nuevoProv.id;
       }
       var total = lineas.reduce(function(s,l){ return s + l.cant*l.precio; }, 0);
       var nuevaCompra = {
@@ -1022,8 +1074,8 @@ body{padding-top:28px}
         total: total,
         estado: "confirmada",
         tipo_documento: "manual",
-        proveedor_id: provId || "manual",
-        proveedores: { nombre: provNombre }
+        proveedor_id: provId,
+        proveedores: { nombre: r.nombre }
       };
       DEMO.compras.unshift(nuevaCompra);
       DEMO.compraLineas[nuevaCompra.id] = [];
@@ -1101,32 +1153,255 @@ body{padding-top:28px}
     });
   }
 
-  // ---------- COMPRAS ----------
+  // ---------- COMPRAS (lista) ----------
+  function renderCompraCard(c){
+    var prov = c.proveedores ? c.proveedores.nombre : "Sin proveedor";
+    return '<div class="lineitem" data-compra="'+c.id+'" data-nombre="'+esc(prov)+'" style="cursor:pointer">' +
+      '<div class="row between"><span class="txt">'+esc(prov)+'</span><span class="chip '+c.estado+'">'+c.estado+'</span></div>' +
+      '<div class="meta">'+fecha(c.fecha)+' · '+esc(c.numero||c.tipo_documento)+' · '+eur(c.total)+'</div>' +
+      '</div>';
+  }
+
   function cargarCompras(){
+    pintarAlertaSubida();
     var el = $("comprasList");
     sb.from("compras").select("id,numero,fecha,total,estado,tipo_documento,proveedores(nombre)")
       .eq("negocio_id", state.negocioId).order("creado_en",{ascending:false}).limit(30)
       .then(function(r){
-        var rows = r.data || [];
+        var rows = (r.data || []).slice();
         if (r.error){ el.innerHTML = '<div class="empty">No se pudieron cargar.</div>'; return; }
-        if (!rows.length){ el.innerHTML = '<div class="empty">Aún no hay compras. Sube tu primer documento.</div>'; return; }
-        el.innerHTML = rows.map(function(c){
-          var prov = c.proveedores ? c.proveedores.nombre : "Sin proveedor";
-          return '<div class="lineitem" data-compra="'+c.id+'" data-nombre="'+esc(prov)+'" style="cursor:pointer">' +
-            '<div class="row between"><span class="txt">'+esc(prov)+'</span><span class="chip '+c.estado+'">'+c.estado+'</span></div>' +
-            '<div class="meta">'+fecha(c.fecha)+' · '+esc(c.numero||c.tipo_documento)+' · '+eur(c.total)+'</div>' +
-            '</div>';
-        }).join("");
+        if (!rows.length){ el.innerHTML = '<div class="empty">Aún no hay compras. Sube tu primer documento o métela a mano.</div>'; return; }
+        // las que tienen incidencia sin resolver (revisar / pendiente) van arriba del todo
+        rows.sort(function(a,b){ return (a.estado==="confirmada"?1:0) - (b.estado==="confirmada"?1:0); });
+        el.innerHTML = rows.map(renderCompraCard).join("");
         qsa("[data-compra]", el).forEach(function(card){
           card.addEventListener("click", function(){
             openModal(card.dataset.nombre);
-            mostrarResolver(card.dataset.compra, $("modalBody"), cargarCompras);
+            mostrarResolver(card.dataset.compra, $("modalBody"));
           });
         });
       });
   }
 
-  // ---------- NEGOCIO ----------
+  // ---------- VENTA MANUAL ----------
+  var manualLineaVentaN = 0;
+  $("btnVentaManual").addEventListener("click", function(){
+    var box = $("manualBoxVenta");
+    if (box.innerHTML){ box.innerHTML = ""; return; }
+    manualLineaVentaN = 0;
+    box.innerHTML =
+      '<div class="card stack" id="manualFormVenta">' +
+        '<h2 style="margin:0">Venta manual</h2>' +
+        '<div>' +
+          '<label>Platos vendidos</label>' +
+          '<div id="manualLineasVenta" class="stack"></div>' +
+          '<button class="btn sm" id="manualAddLineaVenta" type="button" style="margin-top:8px">+ Añadir plato</button>' +
+        '</div>' +
+        '<div class="row" style="gap:8px">' +
+          '<button class="btn" id="manualCancelarVenta" type="button">Cancelar</button>' +
+          '<button class="btn primary" id="manualGuardarVenta" type="button">Guardar venta</button>' +
+        '</div>' +
+      '</div>';
+
+    function addLineaVenta(){
+      manualLineaVentaN++;
+      var row = document.createElement("div");
+      row.className = "row";
+      row.style.gap = "6px";
+      row.style.alignItems = "flex-start";
+      row.innerHTML =
+        '<input type="text" placeholder="Plato" data-mlv-nombre style="flex:2">' +
+        '<input type="number" step="any" min="0" placeholder="Cant." data-mlv-cant style="flex:1">' +
+        '<input type="number" step="any" min="0" placeholder="Precio/u" data-mlv-precio style="flex:1">' +
+        '<button class="iconbtn" type="button" data-mlv-quitar title="Quitar">✕</button>';
+      $("manualLineasVenta").appendChild(row);
+      qs("[data-mlv-quitar]", row).addEventListener("click", function(){ row.remove(); });
+      wireAutocomplete(qs("[data-mlv-nombre]", row), function(){ return DEMO.platos.map(function(p){ return p.nombre; }); }, CATALOGO_PLATOS);
+    }
+    addLineaVenta();
+    $("manualAddLineaVenta").addEventListener("click", addLineaVenta);
+    $("manualCancelarVenta").addEventListener("click", function(){ box.innerHTML = ""; });
+
+    $("manualGuardarVenta").addEventListener("click", function(){
+      var btn = this;
+      var lineas = qsa("#manualLineasVenta > div").map(function(row){
+        return {
+          nombre: qs("[data-mlv-nombre]", row).value.trim(),
+          cant: parseFloat(qs("[data-mlv-cant]", row).value),
+          precio: parseFloat(qs("[data-mlv-precio]", row).value)
+        };
+      }).filter(function(l){ return l.nombre && l.cant>0 && l.precio>=0; });
+
+      if (!lineas.length){ toast("Añade al menos un plato con cantidad y precio.", "err"); return; }
+
+      setLoading(btn, true, "Guardando…");
+      lineas.forEach(function(l){
+        var t = norm(l.nombre);
+        if (!DEMO.platos.find(function(p){ return norm(p.nombre)===t; })){
+          DEMO.platos.push({ id: "pl"+Date.now()+Math.random(), nombre: l.nombre });
+        }
+      });
+      var total = lineas.reduce(function(s,l){ return s + l.cant*l.precio; }, 0);
+      var nuevaVenta = {
+        id: "manual-v-" + Date.now(),
+        numero: "Manual-" + new Date().toLocaleDateString("es-ES"),
+        fecha: new Date().toISOString().slice(0,10),
+        total: total,
+        estado: "confirmada",
+        tipo_documento: "manual"
+      };
+      DEMO.ventas.unshift(nuevaVenta);
+      DEMO.ventaLineas[nuevaVenta.id] = [];
+
+      wait(null, 250).then(function(){
+        toast("Venta manual guardada.", "ok");
+        box.innerHTML = "";
+        cargarVentas();
+      });
+    });
+  });
+
+  function renderVentaLineaForm(l){
+    return '<div class="lineitem" data-vl-form data-linea="'+l.id+'">' +
+      '<div class="txt">'+esc(l.texto_original)+'</div>' +
+      '<div class="meta">'+l.cantidad+' ud · '+eur(l.precio_unitario)+'/ud</div>' +
+      '<input type="text" data-vl-input placeholder="Plato o artículo" value="'+esc(l.texto_original)+'" style="margin-bottom:8px">' +
+      '<button class="btn primary sm" data-vl-guardar type="button">Guardar</button>' +
+      '</div>';
+  }
+
+  function wireVentaLineaForm(root, ventaId, onDone){
+    qsa("[data-vl-form]", root).forEach(function(form){
+      var lineaId = form.dataset.linea;
+      var input = qs("[data-vl-input]", form);
+      wireAutocomplete(input, function(){ return DEMO.platos.map(function(p){ return p.nombre; }); }, CATALOGO_PLATOS);
+      qs("[data-vl-guardar]", form).addEventListener("click", function(){
+        var btn = this;
+        var nombre = input.value.trim();
+        if (!nombre){ toast("Escribe el plato.", "err"); return; }
+        setLoading(btn, true, "Guardando…");
+        sb.rpc("resolver_linea_venta", { p_linea: lineaId, p_nombre: nombre }).then(function(r){
+          if (r.error){ toast(r.error.message, "err"); setLoading(btn,false,null,"Guardar"); return; }
+          toast("Plato guardado.", "ok");
+          onDone();
+        });
+      });
+    });
+  }
+
+  function mostrarResolverVenta(ventaId, contenedor){
+    contenedor.innerHTML = '<div class="empty"><span class="spin"></span></div>';
+    Promise.all([
+      sb.from("ventas").select("id,numero,fecha,total,estado").eq("id", ventaId).single(),
+      sb.from("venta_lineas").select("id,texto_original,cantidad,precio_unitario").eq("venta_id", ventaId)
+    ]).then(function(res){
+      var venta = res[0].data, lineas = res[1].data || [];
+      if (!venta){ contenedor.innerHTML = ""; return; }
+
+      function refrescar(){ mostrarResolverVenta(ventaId, contenedor); cargarVentas(); }
+
+      var html = "";
+      lineas.forEach(function(l){ html += renderVentaLineaForm(l); });
+      if (!html){
+        html = '<div class="card row between">' +
+          '<span style="color:var(--good)">Todo reconocido.</span>' +
+          (venta.estado==="confirmada" ? '<span class="chip confirmada">Confirmada</span>' :
+            '<button class="btn primary sm" id="confirmarVentaBtn" type="button">Confirmar venta</button>') +
+          '</div>';
+      }
+      contenedor.innerHTML = html;
+
+      var cb = $("confirmarVentaBtn");
+      if (cb) cb.addEventListener("click", function(){
+        setLoading(cb, true, "Confirmando…");
+        sb.rpc("confirmar_venta", { p_venta: ventaId }).then(function(r){
+          if (r.error){ toast(r.error.message, "err"); setLoading(cb,false,null,"Confirmar venta"); return; }
+          toast("Venta confirmada.", "ok");
+          refrescar();
+        });
+      });
+
+      wireVentaLineaForm(contenedor, ventaId, refrescar);
+    });
+  }
+
+  function renderVentaCard(v){
+    return '<div class="lineitem" data-venta="'+v.id+'" style="cursor:pointer">' +
+      '<div class="row between"><span class="txt">'+esc(v.numero||v.tipo_documento)+'</span><span class="chip '+v.estado+'">'+v.estado+'</span></div>' +
+      '<div class="meta">'+fecha(v.fecha)+' · '+eur(v.total)+'</div>' +
+      '</div>';
+  }
+
+  function cargarVentas(){
+    var el = $("ventasList");
+    sb.from("ventas").select("id,numero,fecha,total,estado,tipo_documento")
+      .eq("negocio_id", state.negocioId).order("creado_en",{ascending:false}).limit(30)
+      .then(function(r){
+        var rows = (r.data || []).slice();
+        if (r.error){ el.innerHTML = '<div class="empty">No se pudieron cargar.</div>'; return; }
+        if (!rows.length){ el.innerHTML = '<div class="empty">Aún no hay ventas. Sube el primer documento o métela a mano.</div>'; return; }
+        rows.sort(function(a,b){ return (a.estado==="confirmada"?1:0) - (b.estado==="confirmada"?1:0); });
+        el.innerHTML = rows.map(renderVentaCard).join("");
+        qsa("[data-venta]", el).forEach(function(card){
+          card.addEventListener("click", function(){
+            openModal("Revisar venta");
+            mostrarResolverVenta(card.dataset.venta, $("modalBody"));
+          });
+        });
+      });
+  }
+
+  // ---------- INFORMACIÓN ----------
+  function cargarInfo(){
+    $("infoFecha").textContent = new Date().toLocaleDateString("es-ES",{weekday:"long", day:"numeric", month:"long"});
+
+    sb.from("v_impacto_subidas").select("*").eq("negocio_id", state.negocioId).order("impacto_90d_eur",{ascending:false}).limit(5)
+      .then(function(r){
+        var el = $("subidasList");
+        var rows = r.data || [];
+        if (r.error || !rows.length){ el.innerHTML = '<div class="empty">Sin datos todavía.</div>'; return; }
+        el.innerHTML = rows.map(function(x){
+          return '<div class="statline"><span class="k">'+esc(x.nombre)+'</span>' +
+            '<span class="v up">+'+Number(x.subida_pct).toFixed(0)+'% · '+eur(x.impacto_90d_eur)+'</span></div>';
+        }).join("");
+      });
+
+    sb.from("v_ahorro_proveedor").select("*").eq("negocio_id", state.negocioId).order("ahorro_pct",{ascending:false}).limit(5)
+      .then(function(r){
+        var el = $("ahorroList");
+        var rows = r.data || [];
+        if (r.error || !rows.length){ el.innerHTML = '<div class="empty">Sin datos todavía.</div>'; return; }
+        el.innerHTML = rows.map(function(x){
+          return '<div class="statline"><span class="k">'+esc(x.nombre)+'</span>' +
+            '<span class="v down">-'+Number(x.ahorro_pct).toFixed(0)+'%</span></div>';
+        }).join("");
+      });
+
+    $("rentabilidadList").innerHTML = DEMO.rentabilidad.map(function(x){
+      return '<div class="statline"><span class="k">'+esc(x.plato)+'</span>' +
+        '<span class="v" style="color:var(--good)">'+x.margen_pct+'% · '+eur(x.pvp - x.coste)+'</span></div>';
+    }).join("");
+
+    $("movFamiliaList").innerHTML = DEMO.movFamilia.map(function(x){
+      return '<div class="statline"><span class="k">'+esc(x.familia)+'</span><span class="v">'+eur(x.total)+'</span></div>';
+    }).join("");
+
+    $("movProveedorList").innerHTML = DEMO.movProveedor.map(function(x){
+      return '<div class="statline"><span class="k">'+esc(x.proveedor)+'</span><span class="v">'+eur(x.total)+'</span></div>';
+    }).join("");
+
+    var d = DEMO.resumenDocs;
+    $("resumenDocsBox").innerHTML =
+      '<div class="statline"><span class="k">Periodo</span><span class="v">'+esc(d.mes)+'</span></div>' +
+      '<div class="statline"><span class="k">Albaranes</span><span class="v">'+d.nAlbaranes+'</span></div>' +
+      '<div class="statline"><span class="k">Facturas</span><span class="v">'+d.nFacturas+'</span></div>' +
+      '<div class="statline"><span class="k">Tickets</span><span class="v">'+d.nTickets+'</span></div>' +
+      '<div class="statline"><span class="k">Total compras</span><span class="v">'+eur(d.totalCompras)+'</span></div>' +
+      '<div class="statline"><span class="k">Total ventas</span><span class="v">'+eur(d.totalVentas)+'</span></div>';
+
+    cargarNegocioInfo();
+  }
+
   function cargarNegocioInfo(){
     var neg = state.negocios.find(function(n){ return n.id===state.negocioId; });
     if (!neg) return;
@@ -1136,6 +1411,44 @@ body{padding-top:28px}
     sb.from("proveedores").select("id",{count:"exact",head:true}).eq("negocio_id", state.negocioId).then(function(r){ $("negProveedores").textContent = r.count||0; });
     sb.from("productos").select("id",{count:"exact",head:true}).eq("negocio_id", state.negocioId).then(function(r){ $("negProductos").textContent = r.count||0; });
     renderOtrosNegocios();
+  }
+
+  // ---------- ALMACÉN E INVENTARIO ----------
+  function cargarAlmacen(){
+    var el = $("inventarioList");
+    el.innerHTML = DEMO.inventario.map(function(it){
+      return '<div class="lineitem" data-inv="'+it.id+'">' +
+        '<div class="row between"><span class="txt">'+esc(it.nombre)+'</span><span class="meta">'+esc(it.zona)+'</span></div>' +
+        '<div class="meta" data-inv-view>Debería haber: <b>'+it.esperado+' '+esc(it.unidad)+'</b></div>' +
+        '<div data-inv-edit hidden style="margin-top:8px">' +
+          '<div class="row" style="gap:8px">' +
+            '<input type="number" step="any" min="0" data-inv-input value="'+it.esperado+'" style="flex:1">' +
+            '<button class="btn primary sm" data-inv-guardar type="button">Guardar</button>' +
+          '</div>' +
+        '</div>' +
+        '<button class="btn sm" data-inv-corregir type="button" style="margin-top:8px">Corregir cantidad</button>' +
+        '</div>';
+    }).join("");
+
+    qsa("[data-inv]", el).forEach(function(card){
+      var id = card.dataset.inv;
+      var item = DEMO.inventario.find(function(x){ return x.id===id; });
+      var editBox = qs("[data-inv-edit]", card);
+      qs("[data-inv-corregir]", card).addEventListener("click", function(){ editBox.hidden = !editBox.hidden; });
+      qs("[data-inv-guardar]", card).addEventListener("click", function(){
+        var btn = this;
+        var val = parseFloat(qs("[data-inv-input]", card).value);
+        if (isNaN(val) || val<0){ toast("Indica una cantidad válida.", "err"); return; }
+        setLoading(btn, true, "Guardando…");
+        wait(null, 200).then(function(){
+          item.esperado = val;
+          qs("[data-inv-view]", card).innerHTML = 'Debería haber: <b>'+val+' '+esc(item.unidad)+'</b>';
+          editBox.hidden = true;
+          toast("Inventario actualizado.", "ok");
+          setLoading(btn, false, null, "Guardar");
+        });
+      });
+    });
   }
 
   // ---------- START ----------
