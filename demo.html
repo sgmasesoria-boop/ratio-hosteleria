@@ -193,6 +193,24 @@ body{padding-top:28px}
 .reportparams > div{flex:1}
 .reportparams label{display:block; font-size:.74rem; color:var(--muted); margin-bottom:4px}
 .rtotal{color:var(--focus)}
+
+.searchbox{margin:4px 0 10px}
+.searchbox > span{display:block; font-size:.72rem; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.03em; margin-bottom:5px}
+.searchbox-input{display:flex; align-items:center; gap:8px; background:var(--surface-2); border:1px solid var(--border); border-radius:11px; padding:0 12px}
+.searchbox-input .ic{color:var(--muted); font-size:.92rem; flex:none}
+.searchbox-input input[type=text]{border:none; background:transparent; padding:10px 0; flex:1; border-radius:0}
+.searchbox-input input[type=text]:focus{outline:none}
+.searchbox-input:focus-within{border-color:var(--focus)}
+
+.cmpline{padding:10px 0; border-bottom:1px solid var(--border)}
+.cmpline:last-child{border-bottom:none}
+.cmpline .cmphead{display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-bottom:4px}
+.cmpline .cmpname{font-weight:700; font-size:.88rem}
+.cmpline .cmpdetail{display:flex; align-items:center; gap:8px; font-size:.84rem; font-weight:600}
+.c-bad{color:var(--bad)}
+.c-good{color:var(--good)}
+
+.listhead{font-size:.78rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; margin:14px 0 8px}
 </style>
 
 <div class="demobar">Modo demo · datos de ejemplo</div>
@@ -249,7 +267,7 @@ body{padding-top:28px}
 
     <section id="comprasView" class="view">
       <h1>Compras</h1>
-      <p class="lead">Sube el documento o métela a mano. Lo pendiente de revisar aparece arriba del todo.</p>
+      <p class="lead">Sube el documento o métela a mano. Abajo verás solo lo pendiente de revisar; usa el buscador para encontrar cualquier compra ya confirmada.</p>
       <button class="btn ghost sm" id="btnInformesCompras" type="button" style="width:auto; margin:0 0 12px">📊 Ver informes de compras</button>
 
       <div class="camera-cta" id="dropZoneCompras">
@@ -268,13 +286,17 @@ body{padding-top:28px}
       <button class="btn" id="btnCompraManual" type="button" style="margin:12px 0">+ Meter compra a mano</button>
       <div id="manualBox"></div>
 
-      <input type="text" id="comprasBuscar" placeholder="Buscar por proveedor o número de albarán/factura…" style="margin:4px 0 10px">
+      <div class="searchbox">
+        <span>Buscar compra</span>
+        <div class="searchbox-input"><span class="ic">🔍</span><input type="text" id="comprasBuscar" placeholder="Proveedor o número de albarán/factura…"></div>
+      </div>
+      <div class="listhead" id="comprasListHead">Pendiente de revisar</div>
       <div id="comprasList"><div class="empty">Cargando…</div></div>
     </section>
 
     <section id="ventasView" class="view">
       <h1>Ventas</h1>
-      <p class="lead">Carga el ticket Z, el resumen de ventas, o mételas a mano. Lo pendiente de revisar aparece arriba del todo.</p>
+      <p class="lead">Carga el ticket Z, el resumen de ventas, o mételas a mano. Abajo verás solo lo pendiente de revisar; usa el buscador para encontrar cualquier venta ya confirmada.</p>
       <button class="btn ghost sm" id="btnInformesVentas" type="button" style="width:auto; margin:0 0 12px">📊 Ver informes de ventas</button>
 
       <div class="camera-cta" id="dropZoneVentas">
@@ -293,7 +315,11 @@ body{padding-top:28px}
       <button class="btn" id="btnVentaManual" type="button" style="margin:12px 0">+ Meter venta a mano</button>
       <div id="manualBoxVenta"></div>
 
-      <input type="text" id="ventasBuscar" placeholder="Buscar por número de ticket…" style="margin:4px 0 10px">
+      <div class="searchbox">
+        <span>Buscar venta</span>
+        <div class="searchbox-input"><span class="ic">🔍</span><input type="text" id="ventasBuscar" placeholder="Número de ticket…"></div>
+      </div>
+      <div class="listhead" id="ventasListHead">Pendiente de revisar</div>
       <div id="ventasList"><div class="empty">Cargando…</div></div>
     </section>
 
@@ -346,7 +372,10 @@ body{padding-top:28px}
       <h1>Almacén e inventario</h1>
       <p class="lead">De la A a la Z. Toca un producto para ver su ficha completa con el historial de entradas y salidas.</p>
       <button class="btn primary" id="btnRegularizarInventario" type="button" style="margin-bottom:14px">🔄 Regularizar inventario</button>
-      <input type="text" id="almacenBuscar" placeholder="Buscar un producto…" style="margin-bottom:12px">
+      <div class="searchbox">
+        <span>Buscar producto</span>
+        <div class="searchbox-input"><span class="ic">🔍</span><input type="text" id="almacenBuscar" placeholder="Nombre del producto…"></div>
+      </div>
       <div id="inventarioList"><div class="empty">Cargando…</div></div>
     </section>
 
@@ -383,13 +412,13 @@ body{padding-top:28px}
   var DEMO = {
     negocio: { id: "demo-negocio", nombre: "Bar de Pruebas (demo)", licencia_estado: "activa", max_usuarios: 3 },
     subidas: [
-      { nombre: "Gambas blancas congeladas", subida_pct: 14, impacto_90d_eur: 186.40 },
-      { nombre: "Jamón ibérico de bellota", subida_pct: 9, impacto_90d_eur: 142.10 },
-      { nombre: "Aceite de oliva virgen extra", subida_pct: 6, impacto_90d_eur: 58.70 }
+      { nombre: "Gambas blancas congeladas", proveedorAnterior: "Pescados Costa Tropical", proveedorActual: "Pescados Costa Tropical", precioAnterior: 13.10, precioActual: 14.90, subida_pct: 14, impacto_90d_eur: 186.40 },
+      { nombre: "Jamón ibérico de bellota", proveedorAnterior: "Distribuciones Hosteleras Granada SL", proveedorActual: "Distribuciones Hosteleras Granada SL", precioAnterior: 18.40, precioActual: 20.10, subida_pct: 9, impacto_90d_eur: 142.10 },
+      { nombre: "Aceite de oliva virgen extra", proveedorAnterior: "Makro Autoservicio Mayorista", proveedorActual: "Distribuciones Hosteleras Granada SL", precioAnterior: 4.10, precioActual: 4.35, subida_pct: 6, impacto_90d_eur: 58.70 }
     ],
     ahorro: [
-      { nombre: "Cerveza de barril", ahorro_pct: 11 },
-      { nombre: "Refrescos (lata)", ahorro_pct: 7 }
+      { nombre: "Cerveza de barril", proveedorAnterior: "Bebidas Alpujarra", proveedorNuevo: "Cervezas Alhambra", precioAnterior: 92.00, precioNuevo: 81.90, ahorro_pct: 11 },
+      { nombre: "Refrescos (lata)", proveedorAnterior: "Makro Autoservicio Mayorista", proveedorNuevo: "Coca-Cola European Partners", precioAnterior: 0.62, precioNuevo: 0.58, ahorro_pct: 7 }
     ],
     rentabilidad: [
       { plato: "Hamburguesa Casa", coste: 3.80, pvp: 11.50, margen_pct: 67 },
@@ -400,20 +429,16 @@ body{padding-top:28px}
       { familia: "Pescados y mariscos", total: 1840.20 },
       { familia: "Carnes y embutidos", total: 1210.60 },
       { familia: "Bebidas", total: 980.40 },
-      { familia: "Frutas y verduras", total: 540.10 }
-    ],
-    movProveedor: [
-      { proveedor: "Distribuciones Hosteleras Granada SL", total: 2140.30 },
-      { proveedor: "Pescados Costa Tropical", total: 980.50 },
-      { proveedor: "Carnes Sierra Nevada", total: 710.20 }
+      { familia: "Frutas y verduras", total: 540.10 },
+      { familia: "Aceites y conservas", total: 320.50 }
     ],
     resumenDocs: { mes: "Octubre 2026", nAlbaranes: 14, nFacturas: 6, nTickets: 3, totalCompras: 4572.60, totalVentas: 15230.40 },
     inventario: [
-      { id: "i1", nombre: "Gambas blancas", zona: "Cámara", esperado: 6, unidad: "kg" },
-      { id: "i2", nombre: "Jamón ibérico", zona: "Cámara", esperado: 3, unidad: "kg" },
-      { id: "i3", nombre: "Patatas", zona: "Almacén", esperado: 40, unidad: "kg" },
-      { id: "i4", nombre: "Aceite de oliva", zona: "Almacén", esperado: 15, unidad: "l" },
-      { id: "i5", nombre: "Cerveza de barril", zona: "Barra", esperado: 2, unidad: "barril" }
+      { id: "i1", nombre: "Gambas blancas", zona: "Cámara", esperado: 6, unidad: "kg", familia: "Pescados y mariscos" },
+      { id: "i2", nombre: "Jamón ibérico", zona: "Cámara", esperado: 3, unidad: "kg", familia: "Carnes y embutidos" },
+      { id: "i3", nombre: "Patatas", zona: "Almacén", esperado: 40, unidad: "kg", familia: "Frutas y verduras" },
+      { id: "i4", nombre: "Aceite de oliva", zona: "Almacén", esperado: 15, unidad: "l", familia: "Aceites y conservas" },
+      { id: "i5", nombre: "Cerveza de barril", zona: "Barra", esperado: 2, unidad: "barril", familia: "Bebidas" }
     ],
     movimientos: {
       "Gambas blancas": [
@@ -933,17 +958,24 @@ body{padding-top:28px}
       }
     },
     subidas_precio: {
-      nombre: "Subidas de precio", desc: "Productos con mayor subida en los últimos 90 días.",
+      nombre: "Subidas de precio", desc: "Productos con mayor subida en los últimos 90 días. En verde el precio anterior, en rojo el actual.",
       render: function(){
         if (!DEMO.subidas.length) return '<div class="empty">Sin subidas detectadas.</div>';
-        return DEMO.subidas.map(function(x){ return statline(x.nombre, "+"+Number(x.subida_pct).toFixed(0)+"% · "+eur(x.impacto_90d_eur), "up"); }).join("");
+        return DEMO.subidas.map(function(x){
+          var mismo = x.proveedorAnterior === x.proveedorActual;
+          var provLine = mismo ? "Mismo proveedor: "+esc(x.proveedorActual) : "Cambia de proveedor: "+esc(x.proveedorAnterior)+" → "+esc(x.proveedorActual);
+          return cmpLine(x.nombre, "+"+Number(x.subida_pct).toFixed(0)+"% · "+eur(x.impacto_90d_eur), "up", eur(x.precioAnterior), "c-good", eur(x.precioActual), "c-bad", provLine);
+        }).join("");
       }
     },
     ahorro_proveedor: {
-      nombre: "Ahorro cambiando de proveedor", desc: "Productos con una alternativa más barata disponible.",
+      nombre: "Ahorro cambiando de proveedor", desc: "Productos con una alternativa más barata disponible. En rojo el proveedor/precio antiguo, en verde el nuevo.",
       render: function(){
         if (!DEMO.ahorro.length) return '<div class="empty">Sin alternativas detectadas.</div>';
-        return DEMO.ahorro.map(function(x){ return statline(x.nombre, "-"+Number(x.ahorro_pct).toFixed(0)+"%", "down"); }).join("");
+        return DEMO.ahorro.map(function(x){
+          var provLine = "Cambia de proveedor: "+esc(x.proveedorAnterior)+" → "+esc(x.proveedorNuevo);
+          return cmpLine(x.nombre, "-"+Number(x.ahorro_pct).toFixed(0)+"%", "down", eur(x.precioAnterior), "c-bad", eur(x.precioNuevo), "c-good", provLine);
+        }).join("");
       }
     },
     ventas_dia: {
@@ -962,18 +994,68 @@ body{padding-top:28px}
       render: function(){
         return DEMO.rentabilidad.map(function(x){ return statline(x.plato, x.margen_pct+"% · "+eur(x.pvp-x.coste)); }).join("");
       }
-    },
-    mov_familia: {
-      nombre: "Movimiento por familia",
-      render: function(){ return DEMO.movFamilia.map(function(x){ return statline(x.familia, eur(x.total)); }).join(""); }
-    },
-    mov_proveedor: {
-      nombre: "Movimiento por proveedor",
-      render: function(){ return DEMO.movProveedor.map(function(x){ return statline(x.proveedor, eur(x.total)); }).join(""); }
     }
   };
 
+  function cmpLine(nombre, pct, pctCls, izqLabel, izqCls, derLabel, derCls, provLine){
+    return '<div class="cmpline">' +
+      '<div class="cmphead"><span class="cmpname">'+esc(nombre)+'</span><span class="v '+pctCls+'">'+pct+'</span></div>' +
+      '<div class="cmpdetail"><span class="'+izqCls+'">'+izqLabel+'</span><span style="color:var(--muted)">→</span><span class="'+derCls+'">'+derLabel+'</span></div>' +
+      '<div class="meta" style="margin:2px 0 0">'+provLine+'</div>' +
+    '</div>';
+  }
+
+  // ---------- INFORMES DINÁMICOS: elegir proveedor o familia y ver su historial real ----------
+  function abrirMovimientoProveedor(){
+    openModal("Movimiento por proveedor");
+    var body = $("modalBody");
+    if (!DEMO.proveedores.length){ body.innerHTML = '<div class="empty">Sin proveedores todavía.</div>'; return; }
+    body.innerHTML =
+      '<p class="lead" style="margin:0 0 12px">Elige un proveedor para ver su historial de compras.</p>' +
+      '<div class="stack">' + DEMO.proveedores.map(function(p){
+        return '<div class="lineitem" data-mov-prov="'+p.id+'" style="cursor:pointer"><span class="txt">'+esc(p.nombre)+'</span></div>';
+      }).join("") + '</div>';
+    qsa("[data-mov-prov]", body).forEach(function(el){
+      el.addEventListener("click", function(){ renderFichaProveedor(el.dataset.movProv); });
+    });
+  }
+
+  function abrirMovimientoFamilia(){
+    openModal("Movimiento por familia");
+    var body = $("modalBody");
+    body.innerHTML =
+      '<p class="lead" style="margin:0 0 12px">Elige una familia para ver sus productos.</p>' +
+      '<div class="stack">' + DEMO.movFamilia.map(function(f){
+        return '<div class="lineitem" data-mov-fam="'+esc(f.familia)+'" style="cursor:pointer">' +
+          '<div class="row between"><span class="txt">'+esc(f.familia)+'</span><span class="meta" style="margin:0">'+eur(f.total)+'</span></div></div>';
+      }).join("") + '</div>';
+    qsa("[data-mov-fam]", body).forEach(function(el){
+      el.addEventListener("click", function(){ renderFamiliaDetalle(el.dataset.movFam); });
+    });
+  }
+
+  function renderFamiliaDetalle(familia){
+    $("modalTitle").textContent = familia;
+    var items = DEMO.inventario.filter(function(it){ return it.familia===familia; });
+    var html = '<button class="btn ghost sm" id="volverFamilias" type="button" style="width:auto; margin-bottom:12px">← Familias</button>';
+    if (!items.length){
+      html += '<div class="empty">Sin productos en esta familia todavía.</div>';
+    } else {
+      html += '<div class="stack">' + items.map(function(it){
+        return '<div class="lineitem" data-fam-prod="'+it.id+'" style="cursor:pointer">' +
+          '<div class="row between"><span class="txt">'+esc(it.nombre)+'</span><span class="meta" style="margin:0">'+it.esperado+' '+esc(it.unidad)+' · '+esc(it.zona)+'</span></div></div>';
+      }).join("") + '</div>';
+    }
+    $("modalBody").innerHTML = html;
+    $("volverFamilias").addEventListener("click", abrirMovimientoFamilia);
+    qsa("[data-fam-prod]", $("modalBody")).forEach(function(el){
+      el.addEventListener("click", function(){ renderFichaProducto(el.dataset.famProd); });
+    });
+  }
+
   function abrirInforme(id){
+    if (id === "mov_proveedor") return abrirMovimientoProveedor();
+    if (id === "mov_familia") return abrirMovimientoFamilia();
     var def = INFORMES[id];
     if (!def) return;
     openModal(def.nombre);
@@ -1334,6 +1416,8 @@ body{padding-top:28px}
       });
   }
 
+  // Sin texto de búsqueda: solo lo pendiente de revisar (para eso está esta pantalla).
+  // El histórico completo vive en Informes > Compras por proveedor, o se encuentra buscando aquí.
   function pintarComprasLista(){
     var el = $("comprasList");
     if (state.comprasErr){ el.innerHTML = '<div class="empty">No se pudieron cargar.</div>'; return; }
@@ -1344,12 +1428,15 @@ body{padding-top:28px}
         var prov = c.proveedores ? c.proveedores.nombre : "sin proveedor";
         return norm(prov).indexOf(t) > -1 || norm(c.numero||"").indexOf(t) > -1;
       });
+      $("comprasListHead").textContent = "Resultados de la búsqueda";
+    } else {
+      rows = rows.filter(function(c){ return c.estado !== "confirmada"; });
+      $("comprasListHead").textContent = "Pendiente de revisar";
     }
     if (!rows.length){
-      el.innerHTML = '<div class="empty">'+(t ? "Sin resultados." : "Aún no hay compras. Sube tu primer documento o métela a mano.")+'</div>';
+      el.innerHTML = '<div class="empty">'+(t ? "Sin resultados." : "Nada pendiente. Todo al día.")+'</div>';
       return;
     }
-    // las que tienen incidencia sin resolver (revisar / pendiente) van arriba del todo
     rows.sort(function(a,b){ return (a.estado==="confirmada"?1:0) - (b.estado==="confirmada"?1:0); });
     el.innerHTML = rows.map(renderCompraCard).join("");
     qsa("[data-compra]", el).forEach(function(card){
@@ -1526,14 +1613,21 @@ body{padding-top:28px}
       });
   }
 
+  // Sin texto de búsqueda: solo lo pendiente de revisar. El histórico vive en Informes > Ventas por día.
   function pintarVentasLista(){
     var el = $("ventasList");
     if (state.ventasErr){ el.innerHTML = '<div class="empty">No se pudieron cargar.</div>'; return; }
     var rows = state.ventasCache.slice();
     var t = norm($("ventasBuscar").value);
-    if (t) rows = rows.filter(function(v){ return norm(v.numero||"").indexOf(t) > -1; });
+    if (t){
+      rows = rows.filter(function(v){ return norm(v.numero||"").indexOf(t) > -1; });
+      $("ventasListHead").textContent = "Resultados de la búsqueda";
+    } else {
+      rows = rows.filter(function(v){ return v.estado !== "confirmada"; });
+      $("ventasListHead").textContent = "Pendiente de revisar";
+    }
     if (!rows.length){
-      el.innerHTML = '<div class="empty">'+(t ? "Sin resultados." : "Aún no hay ventas. Sube el primer documento o métela a mano.")+'</div>';
+      el.innerHTML = '<div class="empty">'+(t ? "Sin resultados." : "Nada pendiente. Todo al día.")+'</div>';
       return;
     }
     rows.sort(function(a,b){ return (a.estado==="confirmada"?1:0) - (b.estado==="confirmada"?1:0); });
