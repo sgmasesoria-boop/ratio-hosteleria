@@ -178,9 +178,13 @@ nav.tabs button.active{color:var(--accent)}
   position:sticky; top:-18px; background:var(--surface); padding-top:18px; margin-top:-18px; z-index:2;
   border-bottom:1px solid var(--border); padding-bottom:12px}
 .ac-wrap{position:relative}
-.ac-list{position:absolute; left:0; right:0; top:100%; margin-top:4px; z-index:30;
-  background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden;
-  box-shadow:0 8px 20px rgba(0,0,0,.12)}
+/* A propósito NO es position:absolute: si el desplegable "flotase" encima de lo que viene
+   justo debajo (el botón "Guardar"), lo taparía del todo — el toque caería sobre una sugerencia,
+   no sobre el botón, y parecería que "Guardar" no hace nada. Al ir en el flujo normal, empuja
+   el resto del formulario hacia abajo en vez de taparlo. */
+.ac-list{position:relative; margin-top:4px; z-index:5; max-height:38vh; overflow-y:auto;
+  background:var(--surface); border:1px solid var(--border); border-radius:10px;
+  box-shadow:0 4px 14px rgba(0,0,0,.10)}
 .ac-item{padding:9px 12px; font-size:.88rem; cursor:pointer; display:flex; justify-content:space-between; gap:8px; align-items:center}
 .ac-item:hover, .ac-item.active{background:var(--surface-2)}
 .ac-item .ac-src{font-size:.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; flex:none}
