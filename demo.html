@@ -977,6 +977,7 @@ body{padding-top:28px}
         else if (kind === "producto") renderFichaProducto(id);
         else if (kind === "compra") abrirCompra(id);
         else if (kind === "venta") abrirVenta(id);
+        else if (kind === "plato") abrirFichaPlato(id);
       });
     });
   }
@@ -1055,7 +1056,8 @@ body{padding-top:28px}
     } else {
       html += lineas.map(function(l){
         var nombre = l.nombre || l.texto_original;
-        return '<div class="statline"><span class="k">'+esc(nombre)+'</span>' +
+        var label = l.plato_id ? chip("plato", l.plato_id, nombre) : esc(nombre);
+        return '<div class="statline"><span class="k">'+label+'</span>' +
           '<span class="v">'+l.cantidad+' ud · '+eur(l.precio_unitario)+'/ud</span></div>';
       }).join("");
     }
@@ -1188,12 +1190,47 @@ body{padding-top:28px}
     } else {
       html += lineas.map(function(l){
         var nombre = l.nombre || l.texto_original;
-        return '<div class="statline"><span class="k">'+esc(nombre)+'</span>' +
+        var label = l.plato_id ? chip("plato", l.plato_id, nombre) : esc(nombre);
+        return '<div class="statline"><span class="k">'+label+'</span>' +
           '<span class="v">'+l.cantidad+' ud · '+eur(l.precio_unitario)+'/ud</span></div>';
       }).join("");
     }
     $("modalBody").innerHTML = html;
+    wireElinks($("modalBody"));
     $("tslVolver").addEventListener("click", volverFn);
+  }
+
+  // Ficha de un plato: historial completo de ventas (sin restringir a un periodo), con cada
+  // ticket enlazado a su detalle de solo lectura. Es el punto de entrada cuando se pincha un
+  // plato desde cualquier ticket, cerrando el ciclo plato -> ticket -> plato.
+  function abrirFichaPlato(id){
+    var plato = DEMO.platos.find(function(p){ return p.id === id; });
+    openModal(plato ? plato.nombre : "Plato");
+    renderFichaPlatoVentas(id, plato ? plato.nombre : "");
+  }
+
+  function renderFichaPlatoVentas(platoId, nombre){
+    $("modalTitle").textContent = nombre;
+    var rows = DEMO.ventas.filter(function(v){
+      return (DEMO.ventaLineas[v.id] || []).some(function(l){ return l.plato_id === platoId; });
+    }).slice().sort(function(a,b){ return a.fecha < b.fecha ? 1 : -1; });
+    var html = '<h2 style="margin-top:0">Historial de ventas</h2>';
+    if (!rows.length){
+      html += '<div class="empty">Sin ventas registradas de este plato.</div>';
+    } else {
+      html += rows.map(function(v){
+        var linea = (DEMO.ventaLineas[v.id] || []).find(function(l){ return l.plato_id === platoId; });
+        return '<div class="lineitem" data-fp-ticket="'+v.id+'" style="cursor:pointer">' +
+          '<div class="row between"><span class="txt">'+fecha(v.fecha)+' · '+esc(v.numero||v.tipo_documento)+'</span><span class="chip '+v.estado+'">'+v.estado+'</span></div>' +
+          '<div class="meta">'+(linea?linea.cantidad:"")+' ud en este ticket</div></div>';
+      }).join("");
+    }
+    $("modalBody").innerHTML = html;
+    qsa("[data-fp-ticket]", $("modalBody")).forEach(function(el){
+      el.addEventListener("click", function(){
+        renderTicketSoloLectura(el.dataset.fpTicket, nombre, function(){ renderFichaPlatoVentas(platoId, nombre); });
+      });
+    });
   }
 
   // ---------- RENTABILIDAD DE PLATOS: plato -> tickets donde se vendió -> detalle del ticket ----------
