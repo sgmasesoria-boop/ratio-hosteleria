@@ -62,6 +62,12 @@ header.top .neg{color:var(--muted); font-size:.85rem; overflow:hidden; text-over
 .dot.off{background:var(--muted)}
 .iconbtn{background:none;border:none;color:var(--muted);font-size:1rem;padding:6px;cursor:pointer;border-radius:8px}
 .iconbtn:hover{background:var(--surface-2)}
+/* El botón de cerrar un menú (✕) siempre va dentro de la cabecera fija (sticky) del modal, así
+   que nunca desaparece al hacer scroll por una lista larga; lo hacemos además un círculo sólido
+   para que se note claramente que es un botón, no solo un signo suelto. */
+#modalClose{background:var(--surface-2); border-radius:50%; width:34px; height:34px; padding:0;
+  display:flex; align-items:center; justify-content:center; flex:none; font-size:.95rem; color:var(--fg)}
+#modalClose:hover{background:var(--border)}
 
 main{flex:1; padding:16px 0 90px; min-width:0}
 section.view{display:none}
@@ -156,15 +162,21 @@ nav.tabs button.active{color:var(--accent)}
 .authtabs button{flex:1; border:none; background:none; padding:9px; border-radius:8px; font-weight:700; font-size:.85rem; color:var(--muted); cursor:pointer; font-family:inherit}
 .authtabs button.active{background:var(--surface); color:var(--fg)}
 [hidden]{display:none!important}
-.modal-overlay{position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.45);
+/* El fondo oscurecido y la hoja del modal antes usaban casi el mismo tono que la propia
+   pantalla (sobre todo en modo oscuro), así que costaba distinguir qué estaba "encima" y qué
+   estaba "detrás". Ahora la hoja usa var(--surface) -no var(--bg)-, contrastando con la
+   pantalla de fondo, y el fondo se oscurece más para remarcar la separación. */
+.modal-overlay{position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.6);
   display:flex; align-items:flex-end; justify-content:center}
 @media (min-width:560px){ .modal-overlay{ align-items:center } }
-.modal-sheet{background:var(--bg); width:100%; max-width:528px; max-height:88vh; overflow-y:auto; overflow-x:hidden;
+.modal-sheet{background:var(--surface); width:100%; max-width:528px; max-height:88vh; overflow-y:auto; overflow-x:hidden;
   border-radius:18px 18px 0 0; padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));
-  box-shadow:0 -8px 30px rgba(0,0,0,.25)}
-@media (min-width:560px){ .modal-sheet{ border-radius:18px; max-height:80vh } }
+  border:1px solid var(--border); border-bottom:none;
+  box-shadow:0 -8px 30px rgba(0,0,0,.4)}
+@media (min-width:560px){ .modal-sheet{ border-radius:18px; max-height:80vh; border-bottom:1px solid var(--border) } }
 .modal-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;
-  position:sticky; top:-18px; background:var(--bg); padding-top:18px; margin-top:-18px; z-index:2}
+  position:sticky; top:-18px; background:var(--surface); padding-top:18px; margin-top:-18px; z-index:2;
+  border-bottom:1px solid var(--border); padding-bottom:12px}
 .ac-wrap{position:relative}
 .ac-list{position:absolute; left:0; right:0; top:100%; margin-top:4px; z-index:30;
   background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden;
