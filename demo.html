@@ -1429,16 +1429,47 @@ body{padding-top:28px}
   }
 
   // ---------- ESCANDALLO: receta de cada plato (ingredientes + cantidad por ración) ----------
-  // El coste de cada ingrediente sale de su última entrada de compra (mismo criterio que ya se
-  // usa para valorar las mermas por FIFO); si a algún ingrediente le falta ese dato, el escandallo
-  // se marca como "incompleto" en vez de inventar un precio.
-  function costeUnitarioProducto(productoId){
+  // El coste de cada ingrediente se valora por FIFO: se consumen primero las entradas de compra
+  // más antiguas que todavía quedan en stock hoy, al precio al que llegaron (mismo criterio que
+  // ya se usa para valorar las mermas de inventario — ver valorFIFO). Cada línea puede llevar
+  // además un % de merma de cocina (limpieza, pelado, recorte…): la cantidad que de verdad hay
+  // que comprar para que quede "cantidad" neta en el plato es mayor que la cantidad servida, y
+  // es esa cantidad bruta la que se valora. Si no hay stock/histórico suficiente para cubrirla,
+  // el escandallo se marca como "incompleto" en vez de dar un coste más bajo del real.
+  function cantidadBruta(l){
+    var m = Math.min(Math.max(l.merma_pct || 0, 0), 99);
+    return m > 0 ? l.cantidad / (1 - m/100) : l.cantidad;
+  }
+
+  function costeFifoIngrediente(productoId, cantidadNecesaria){
     var item = DEMO.inventario.find(function(p){ return p.id === productoId; });
-    if (!item) return null;
-    var entradas = (DEMO.movimientos[item.nombre] || []).filter(function(m){ return m.tipo === "entrada" && m.precio != null; });
-    if (!entradas.length) return null;
-    entradas = entradas.slice().sort(function(a,b){ return a.fecha < b.fecha ? 1 : -1; });
-    return entradas[0].precio;
+    if (!item || !(cantidadNecesaria > 0)) return null;
+    var hoy = new Date().toISOString().slice(0,10);
+    var movs = (DEMO.movimientos[item.nombre] || [])
+      .filter(function(m){ return m.fecha <= hoy; })
+      .slice().sort(function(a,b){ return a.fecha < b.fecha ? -1 : 1; });
+    var capas = [];
+    movs.forEach(function(m){
+      if (m.tipo === "entrada"){
+        capas.push({ cantidad: m.cantidad, precio: m.precio || 0 });
+      } else {
+        var pendiente = m.cantidad;
+        while (pendiente > 0 && capas.length){
+          var c = capas[0];
+          var usado = Math.min(c.cantidad, pendiente);
+          c.cantidad -= usado; pendiente -= usado;
+          if (c.cantidad <= 0) capas.shift();
+        }
+      }
+    });
+    var restante = cantidadNecesaria, valor = 0;
+    for (var i=0; i<capas.length && restante>0; i++){
+      var c = capas[i];
+      var usado = Math.min(c.cantidad, restante);
+      valor += usado * c.precio;
+      restante -= usado;
+    }
+    return { valor: valor, cubierta: restante <= 0.0001 };
   }
 
   function calcularCosteEscandallo(platoId){
@@ -1446,9 +1477,9 @@ body{padding-top:28px}
     if (!lineas.length) return null;
     var total = 0, incompleto = false;
     lineas.forEach(function(l){
-      var pu = costeUnitarioProducto(l.producto_id);
-      if (pu == null){ incompleto = true; return; }
-      total += pu * l.cantidad;
+      var fifo = costeFifoIngrediente(l.producto_id, cantidadBruta(l));
+      if (!fifo || !fifo.cubierta){ incompleto = true; }
+      total += fifo ? fifo.valor : 0;
     });
     return { total: total, incompleto: incompleto };
   }
@@ -1482,14 +1513,16 @@ body{padding-top:28px}
     } else {
       cuerpo += '<div class="stack">' + lineas.map(function(l){
         var item = DEMO.inventario.find(function(p){ return p.id === l.producto_id; });
-        var pu = costeUnitarioProducto(l.producto_id);
-        var subtotal = pu != null ? pu * l.cantidad : null;
+        var bruta = cantidadBruta(l);
+        var fifo = costeFifoIngrediente(l.producto_id, bruta);
+        var mermaTxt = (l.merma_pct > 0) ? ' · merma '+l.merma_pct+'% ('+bruta.toFixed(3).replace(/\.?0+$/,"")+' '+esc(l.unidad)+' compradas)' : '';
+        var subLinea = !fifo ? ' · sin historial de compra todavía' : (!fifo.cubierta ? ' · stock insuficiente' : '');
         return '<div class="row between" style="gap:10px">' +
           '<div style="flex:1; min-width:0">' +
             '<div class="txt" style="font-weight:700; font-size:.88rem; margin:0">'+esc(item ? item.nombre : l.nombre)+'</div>' +
-            '<div class="meta" style="margin:0">'+l.cantidad+' '+esc(l.unidad)+(pu != null ? ' · '+eur(pu)+'/'+esc(l.unidad) : ' · sin precio de compra todavía')+'</div>' +
+            '<div class="meta" style="margin:0">'+l.cantidad+' '+esc(l.unidad)+mermaTxt+subLinea+'</div>' +
           '</div>' +
-          '<span class="meta" style="margin:0; white-space:nowrap">'+(subtotal != null ? eur(subtotal) : '—')+'</span>' +
+          '<span class="meta" style="margin:0; white-space:nowrap">'+(fifo ? eur(fifo.valor) : '—')+'</span>' +
           '<button class="btn ghost sm" type="button" data-esc-quitar="'+l.id+'" style="width:auto; padding:6px 10px">✕</button>' +
         '</div>';
       }).join("") + '</div>';
@@ -1498,7 +1531,10 @@ body{padding-top:28px}
     cuerpo +=
       '<div class="row" style="gap:8px; margin-top:12px">' +
         '<input type="text" id="escIngredienteInput" placeholder="Producto…" style="flex:1">' +
-        '<input type="number" step="any" min="0" id="escCantidadInput" placeholder="Cant." style="width:84px">' +
+      '</div>' +
+      '<div class="row" style="gap:8px; margin-top:8px">' +
+        '<div style="flex:1"><label style="font-size:.75rem">Cantidad (neta)</label><input type="number" step="any" min="0" id="escCantidadInput" placeholder="0"></div>' +
+        '<div style="flex:1"><label style="font-size:.75rem">Merma %</label><input type="number" step="any" min="0" max="99" id="escMermaInput" placeholder="0"></div>' +
       '</div>' +
       '<button class="btn sm" id="escAnadir" type="button" style="width:auto; margin-top:8px">+ Añadir ingrediente</button>';
 
@@ -1531,15 +1567,18 @@ body{padding-top:28px}
     qs("#escAnadir", root).addEventListener("click", function(){
       var texto = inputProd.value.trim();
       var cantInput = qs("#escCantidadInput", root);
+      var mermaInput = qs("#escMermaInput", root);
       var cant = parseFloat(cantInput.value);
+      var merma = mermaInput.value.trim() === "" ? 0 : parseFloat(mermaInput.value);
       if (!texto){ toast("Escribe el nombre del producto.", "err"); return; }
       if (!(cant > 0)){ toast("Indica la cantidad.", "err"); return; }
+      if (isNaN(merma) || merma < 0 || merma >= 100){ toast("La merma debe ser un % entre 0 y 99.", "err"); return; }
       var item = DEMO.inventario.find(function(p){ return norm(p.nombre) === norm(texto); });
       if (!item){ toast('"'+texto+'" no existe en Artículos/Almacén. Date de alta primero una compra con ese producto.', "err"); return; }
       DEMO.escandallos[platoId] = DEMO.escandallos[platoId] || [];
       var existente = DEMO.escandallos[platoId].find(function(l){ return l.producto_id === item.id; });
-      if (existente) existente.cantidad = cant;
-      else DEMO.escandallos[platoId].push({ id: "esc"+Date.now()+Math.random(), producto_id: item.id, nombre: item.nombre, cantidad: cant, unidad: item.unidad });
+      if (existente){ existente.cantidad = cant; existente.merma_pct = merma; }
+      else DEMO.escandallos[platoId].push({ id: "esc"+Date.now()+Math.random(), producto_id: item.id, nombre: item.nombre, cantidad: cant, unidad: item.unidad, merma_pct: merma });
       toast("Ingrediente añadido.", "ok");
       onCambio();
     });
