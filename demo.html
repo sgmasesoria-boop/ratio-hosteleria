@@ -292,7 +292,7 @@ body{padding-top:28px}
       <div class="camera-cta" id="dropZoneCompras">
         <div class="ic">📷</div>
         <div style="font-weight:700; margin-bottom:6px">Albarán, factura o ticket</div>
-        <div class="lead" style="margin:0 0 12px">Foto o cualquier archivo (PDF, Excel, CSV…). En esta demo la lectura automática está simulada: verás un aviso. Para probar la pantalla de revisar usa un documento de la lista de abajo, o mete la compra a mano.</div>
+        <div class="lead" style="margin:0 0 12px">Haz una foto clara y bien iluminada del albarán o ticket — la lectura se hace en el propio móvil/navegador. De momento solo lee fotos (JPG/PNG); para PDF, Excel o CSV usa "Meter compra a mano".</div>
         <div class="upload-row">
           <button class="btn primary" id="btnCamaraCompra" type="button">Hacer foto</button>
           <button class="btn" id="btnGaleriaCompra" type="button">Subir archivo</button>
@@ -321,7 +321,7 @@ body{padding-top:28px}
       <div class="camera-cta" id="dropZoneVentas">
         <div class="ic">📷</div>
         <div style="font-weight:700; margin-bottom:6px">Cinta de control detallada por ticket</div>
-        <div class="lead" style="margin:0 0 12px">Foto o cualquier archivo (PDF, Excel, CSV…) con el detalle línea a línea de cada ticket — no sirve un resumen ni un Z. En esta demo la lectura automática está simulada: verás un aviso. Para probar la pantalla de revisar usa un documento de la lista de abajo, o mete la venta a mano.</div>
+        <div class="lead" style="margin:0 0 12px">Haz una foto clara del detalle línea a línea de cada ticket — no sirve un resumen ni un Z. La lectura se hace en el propio móvil/navegador. De momento solo lee fotos (JPG/PNG); para PDF, Excel o CSV usa "Meter venta a mano".</div>
         <div class="upload-row">
           <button class="btn primary" id="btnCamaraVenta" type="button">Hacer foto</button>
           <button class="btn" id="btnGaleriaVenta" type="button">Subir archivo</button>
@@ -766,6 +766,84 @@ body{padding-top:28px}
     }
   }
 
+  // ---------- LECTURA DE FOTOS (OCR en el propio navegador, sin backend) ----------
+  // Sin servidor: se usa Tesseract.js (se descarga la primera vez que hace falta) para leer el
+  // texto de la foto, y luego un analizador de líneas intenta separarlo en artículo/cantidad/precio.
+  // Es "mejor esfuerzo": con fotos claras funciona razonablemente bien, pero nunca tan fiable como
+  // un OCR/IA en servidor — por eso cantidad y precio quedan editables en la pantalla de revisar.
+  var tesseractCargando = null;
+  function cargarTesseract(){
+    if (window.Tesseract) return Promise.resolve();
+    if (tesseractCargando) return tesseractCargando;
+    tesseractCargando = new Promise(function(resolve, reject){
+      var s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
+      s.onload = function(){ resolve(); };
+      s.onerror = function(){ tesseractCargando = null; reject(new Error("No se pudo cargar el lector de texto (revisa la conexión).")); };
+      document.head.appendChild(s);
+    });
+    return tesseractCargando;
+  }
+
+  function ocrImagen(file, onProgreso){
+    return cargarTesseract().then(function(){
+      return Tesseract.recognize(file, "spa", {
+        logger: function(m){
+          if (onProgreso && m && m.status === "recognizing text" && typeof m.progress === "number"){
+            onProgreso(Math.round(m.progress * 100));
+          }
+        }
+      });
+    }).then(function(res){ return (res && res.data && res.data.text) || ""; });
+  }
+
+  var RUIDO_DOCUMENTO = /total|subtotal|\biva\b|\bcif\b|\bnif\b|gracias|\bticket\b|factura|albar[aá]n|\bfecha\b|\bhora\b|\bcaja\b|cambio|efectivo|tarjeta|direcci[oó]n|tel[eé]fono|www\.|https?:|n[uú]mero|cliente|atenci[oó]n|forma de pago|c\.?p\.?\s*\d/i;
+
+  // Intenta separar el texto reconocido en líneas de "nombre + cantidad + precio". No hay un
+  // formato único de ticket, así que se prueban los dos órdenes más habituales y se descartan
+  // las líneas que no tengan pinta de artículo (cabeceras, totales, direcciones…).
+  function parsearLineasDocumento(texto){
+    var lineasTexto = (texto || "").split(/\r?\n/).map(function(l){ return l.trim(); }).filter(Boolean);
+
+    var fechaDoc = new Date().toISOString().slice(0,10);
+    var mFecha = texto.match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
+    if (mFecha){
+      var d = parseInt(mFecha[1],10), mo = parseInt(mFecha[2],10), y = parseInt(mFecha[3],10);
+      if (y < 100) y += 2000;
+      if (d>=1 && d<=31 && mo>=1 && mo<=12){
+        fechaDoc = y + "-" + String(mo).padStart(2,"0") + "-" + String(d).padStart(2,"0");
+      }
+    }
+
+    var reNombreCantPrecio = /^(.+?)\s+(\d+(?:[.,]\d+)?)\s*(?:ud\.?|uds\.?|x)?\s*[x·]?\s*(\d+(?:[.,]\d+)?)\s*€?\s*$/i;
+    var reCantNombrePrecio = /^(\d+(?:[.,]\d+)?)\s*(?:ud\.?|uds\.?|x)?\s+(.+?)\s+(\d+(?:[.,]\d+)?)\s*€?\s*$/i;
+    var reLetras = /[a-zA-ZÀ-ÿ]{3,}/;
+
+    var lineas = [];
+    lineasTexto.forEach(function(linea){
+      if (linea.length < 4) return;
+      if (RUIDO_DOCUMENTO.test(linea)) return;
+      if (!reLetras.test(linea)) return;
+
+      var nombre, cantidad, precio;
+      var m = linea.match(reNombreCantPrecio);
+      if (m && reLetras.test(m[1])){
+        nombre = m[1]; cantidad = parseFloat(m[2].replace(",", ".")); precio = parseFloat(m[3].replace(",", "."));
+      } else {
+        var m2 = linea.match(reCantNombrePrecio);
+        if (m2 && reLetras.test(m2[2])){
+          cantidad = parseFloat(m2[1].replace(",", ".")); nombre = m2[2]; precio = parseFloat(m2[3].replace(",", "."));
+        }
+      }
+      if (nombre && cantidad > 0 && precio >= 0){
+        nombre = nombre.replace(/[·.\-–]+$/,"").trim();
+        if (nombre.length >= 3) lineas.push({ nombre: nombre.toUpperCase(), cantidad: cantidad, precio_unitario: precio });
+      }
+    });
+
+    return { fecha: fechaDoc, lineas: lineas };
+  }
+
   var sb = {
     auth: {
       getSession: function(){ return wait({ data: { session: { user: { id: "demo-user" } } } }); },
@@ -809,7 +887,11 @@ body{padding-top:28px}
         }
         Object.keys(DEMO.compraLineas).forEach(function(cid){
           DEMO.compraLineas[cid].forEach(function(l){
-            if (l.id === args.p_linea){ l.producto_id = prodR.id; l.nombre = prodR.nombre; }
+            if (l.id === args.p_linea){
+              l.producto_id = prodR.id; l.nombre = prodR.nombre;
+              if (args.p_cantidad > 0) l.cantidad = args.p_cantidad;
+              if (args.p_precio_unitario >= 0) l.precio_unitario = args.p_precio_unitario;
+            }
           });
         });
         return wait({ data: null, error: null });
@@ -829,7 +911,11 @@ body{padding-top:28px}
         }
         Object.keys(DEMO.ventaLineas).forEach(function(vid){
           DEMO.ventaLineas[vid].forEach(function(l){
-            if (l.id === args.p_linea){ l.plato_id = platoR.id; l.nombre = platoR.nombre; }
+            if (l.id === args.p_linea){
+              l.plato_id = platoR.id; l.nombre = platoR.nombre;
+              if (args.p_cantidad > 0) l.cantidad = args.p_cantidad;
+              if (args.p_precio_unitario >= 0) l.precio_unitario = args.p_precio_unitario;
+            }
           });
         });
         return wait({ data: null, error: null });
@@ -840,9 +926,7 @@ body{padding-top:28px}
         return wait({ data: null, error: null });
       }
       return wait({ data: null, error: null });
-    },
-    storage: { from: function(){ return { upload: function(){ return wait({ data: {}, error: null }); } }; } },
-    functions: { invoke: function(){ return wait({ data: { estado: "ilegible", mensaje: "Modo demo: la lectura automática de documentos no está activada en esta vista de prueba." }, error: null }); } }
+    }
   };
 
   var state = { session:null, negocios:[], negocioId:null, view:"compras", comprasCache:[], comprasErr:null, ventasCache:[], ventasErr:null };
@@ -1670,40 +1754,48 @@ body{padding-top:28px}
   $("fileCamaraCompra").addEventListener("change", function(e){ if (e.target.files[0]) subirFotoCompra(e.target.files[0]); e.target.value=""; });
   $("fileGaleriaCompra").addEventListener("change", function(e){ if (e.target.files[0]) subirFotoCompra(e.target.files[0]); e.target.value=""; });
 
-  function subirFotoCompra(file, forzar){
+  function subirFotoCompra(file){
     var estado = $("subirEstadoCompras");
     estado.hidden = false;
-    estado.innerHTML = '<div class="row"><span class="spin"></span><span>Subiendo foto…</span></div>';
 
-    var path = state.negocioId + "/" + Date.now() + "-" + file.name.replace(/[^a-zA-Z0-9.\-_]/g,"_");
-    sb.storage.from("albaranes").upload(path, file, { contentType: file.type || "image/jpeg" }).then(function(up){
-      if (up.error){ estado.innerHTML = '<div style="color:var(--bad)">No se pudo subir la foto: '+esc(up.error.message)+'</div>'; return; }
-      estado.innerHTML = '<div class="row"><span class="spin"></span><span>Leyendo el documento con IA…</span></div>';
-      return sb.functions.invoke("leer-albaran", { body: { negocio_id: state.negocioId, imagen_path: path, forzar: !!forzar } })
-        .then(function(res){
-          var data = res.data, err = res.error;
-          if (err){ estado.innerHTML = '<div style="color:var(--bad)">Error leyendo el documento. Inténtalo otra vez.</div>'; return; }
-          if (data && data.error){ estado.innerHTML = '<div style="color:var(--bad)">'+esc(data.error)+'</div>'; return; }
-          if (data.estado === "ilegible"){
-            estado.innerHTML = '<div style="color:var(--warn)">'+esc(data.mensaje)+'</div>' +
-              '<div class="lead" style="margin:8px 0 0">Prueba con un documento de la lista de abajo, o usa "Meter compra a mano".</div>';
-            return;
-          }
-          if (data.estado === "duplicado"){
-            estado.innerHTML = '<div><span class="chip dup">Duplicado</span> Esta foto ya se procesó antes.</div>';
-            return;
-          }
-          if (data.estado === "posible_duplicado"){
-            estado.innerHTML = '<div style="margin-bottom:10px"><span class="chip dup">Posible duplicado</span> Ya hay una compra parecida.</div>' +
-              '<button class="btn sm" id="forzarBtn" type="button">Subir igualmente</button>';
-            $("forzarBtn").addEventListener("click", function(){ subirFotoCompra(file, true); });
-            return;
-          }
-          estado.innerHTML = '<div style="color:var(--good)">Documento guardado.</div>';
-          openModal("Revisar compra");
-          mostrarResolver(data.compra_id, $("modalBody"));
-          cargarCompras();
-        });
+    if (!/^image\//.test(file.type || "")){
+      estado.innerHTML = '<div style="color:var(--warn)">De momento solo puedo leer fotos (JPG/PNG) directamente en el navegador.</div>' +
+        '<div class="lead" style="margin:8px 0 0">Para PDF, Excel o CSV usa "Meter compra a mano" mientras tanto.</div>';
+      return;
+    }
+
+    estado.innerHTML = '<div class="row"><span class="spin"></span><span>Leyendo la foto…</span></div>';
+    ocrImagen(file, function(pct){
+      estado.innerHTML = '<div class="row"><span class="spin"></span><span>Leyendo la foto… '+pct+'%</span></div>';
+    }).then(function(texto){
+      var parsed = parsearLineasDocumento(texto);
+      if (!parsed.lineas.length){
+        estado.innerHTML = '<div style="color:var(--warn)">No he podido reconocer artículos en la foto.</div>' +
+          '<div class="lead" style="margin:8px 0 0">Prueba con una foto más clara y bien encuadrada, con buena luz, o usa "Meter compra a mano".</div>';
+        return;
+      }
+      var total = parsed.lineas.reduce(function(s,l){ return s + l.cantidad*l.precio_unitario; }, 0);
+      var nuevaCompra = {
+        id: "ocr-c-" + Date.now(),
+        numero: "Foto-" + new Date(parsed.fecha).toLocaleDateString("es-ES"),
+        fecha: parsed.fecha,
+        total: total,
+        estado: "revisar",
+        tipo_documento: "albaran",
+        proveedor_id: null,
+        proveedores: null
+      };
+      DEMO.compras.unshift(nuevaCompra);
+      DEMO.compraLineas[nuevaCompra.id] = parsed.lineas.map(function(l){
+        return { id: "cl-ocr-"+Date.now()+Math.random(), compra_id: nuevaCompra.id, texto_original: l.nombre, unidad_compra: "ud", cantidad: l.cantidad, precio_unitario: l.precio_unitario, codigo: null, producto_id: null, computa: true };
+      });
+      estado.innerHTML = '<div style="color:var(--good)">Foto leída: '+parsed.lineas.length+' línea'+(parsed.lineas.length===1?"":"s")+' encontrada'+(parsed.lineas.length===1?"":"s")+'. Revisa que cantidad y precio sean correctos.</div>';
+      openModal("Revisar compra");
+      mostrarResolver(nuevaCompra.id, $("modalBody"));
+      cargarCompras();
+    }).catch(function(err){
+      estado.innerHTML = '<div style="color:var(--bad)">No se pudo leer la foto'+(err && err.message ? ": "+esc(err.message) : "")+'.</div>' +
+        '<div class="lead" style="margin:8px 0 0">Inténtalo otra vez, o usa "Meter compra a mano".</div>';
     });
   }
 
@@ -1716,20 +1808,43 @@ body{padding-top:28px}
   function subirFotoVenta(file){
     var estado = $("subirEstadoVentas");
     estado.hidden = false;
-    estado.innerHTML = '<div class="row"><span class="spin"></span><span>Subiendo…</span></div>';
-    var path = state.negocioId + "/" + Date.now() + "-" + file.name.replace(/[^a-zA-Z0-9.\-_]/g,"_");
-    sb.storage.from("ventas").upload(path, file, { contentType: file.type || "image/jpeg" }).then(function(up){
-      if (up.error){ estado.innerHTML = '<div style="color:var(--bad)">No se pudo subir: '+esc(up.error.message)+'</div>'; return; }
-      estado.innerHTML = '<div class="row"><span class="spin"></span><span>Leyendo el documento con IA…</span></div>';
-      return sb.functions.invoke("leer-ventas", { body: { negocio_id: state.negocioId, imagen_path: path } }).then(function(res){
-        var data = res.data;
-        if (data && data.estado === "ilegible"){
-          estado.innerHTML = '<div style="color:var(--warn)">'+esc(data.mensaje)+'</div>' +
-            '<div class="lead" style="margin:8px 0 0">Prueba con un documento de la lista de abajo, o usa "Meter venta a mano".</div>';
-          return;
-        }
-        estado.innerHTML = '<div style="color:var(--good)">Documento guardado.</div>';
+
+    if (!/^image\//.test(file.type || "")){
+      estado.innerHTML = '<div style="color:var(--warn)">De momento solo puedo leer fotos (JPG/PNG) directamente en el navegador.</div>' +
+        '<div class="lead" style="margin:8px 0 0">Para PDF, Excel o CSV usa "Meter venta a mano" mientras tanto.</div>';
+      return;
+    }
+
+    estado.innerHTML = '<div class="row"><span class="spin"></span><span>Leyendo la foto…</span></div>';
+    ocrImagen(file, function(pct){
+      estado.innerHTML = '<div class="row"><span class="spin"></span><span>Leyendo la foto… '+pct+'%</span></div>';
+    }).then(function(texto){
+      var parsed = parsearLineasDocumento(texto);
+      if (!parsed.lineas.length){
+        estado.innerHTML = '<div style="color:var(--warn)">No he podido reconocer platos en la foto.</div>' +
+          '<div class="lead" style="margin:8px 0 0">Prueba con una foto más clara y bien encuadrada, con buena luz, o usa "Meter venta a mano".</div>';
+        return;
+      }
+      var total = parsed.lineas.reduce(function(s,l){ return s + l.cantidad*l.precio_unitario; }, 0);
+      var nuevaVenta = {
+        id: "ocr-v-" + Date.now(),
+        numero: "Foto-" + new Date(parsed.fecha).toLocaleDateString("es-ES"),
+        fecha: parsed.fecha,
+        total: total,
+        estado: "revisar",
+        tipo_documento: "ticket_z"
+      };
+      DEMO.ventas.unshift(nuevaVenta);
+      DEMO.ventaLineas[nuevaVenta.id] = parsed.lineas.map(function(l){
+        return { id: "vl-ocr-"+Date.now()+Math.random(), venta_id: nuevaVenta.id, texto_original: l.nombre, cantidad: l.cantidad, precio_unitario: l.precio_unitario, plato_id: null };
       });
+      estado.innerHTML = '<div style="color:var(--good)">Foto leída: '+parsed.lineas.length+' línea'+(parsed.lineas.length===1?"":"s")+' encontrada'+(parsed.lineas.length===1?"":"s")+'. Revisa que cantidad y precio sean correctos.</div>';
+      openModal("Revisar venta");
+      mostrarResolverVenta(nuevaVenta.id, $("modalBody"));
+      cargarVentas();
+    }).catch(function(err){
+      estado.innerHTML = '<div style="color:var(--bad)">No se pudo leer la foto'+(err && err.message ? ": "+esc(err.message) : "")+'.</div>' +
+        '<div class="lead" style="margin:8px 0 0">Inténtalo otra vez, o usa "Meter venta a mano".</div>';
     });
   }
 
@@ -1851,7 +1966,7 @@ body{padding-top:28px}
         '<button class="iconbtn" type="button" data-ml-quitar title="Quitar">✕</button>';
       $("manualLineas").appendChild(row);
       qs("[data-ml-quitar]", row).addEventListener("click", function(){ row.remove(); });
-      wireAutocomplete(qs("[data-ml-nombre]", row), function(){ return []; }, CATALOGO_PRODUCTOS);
+      wireAutocomplete(qs("[data-ml-nombre]", row), function(){ return DEMO.inventario.map(function(p){ return p.nombre; }); }, CATALOGO_PRODUCTOS);
     }
     addLinea();
     $("manualAddLinea").addEventListener("click", addLinea);
@@ -1892,7 +2007,15 @@ body{padding-top:28px}
         proveedores: { nombre: r.nombre }
       };
       DEMO.compras.unshift(nuevaCompra);
-      DEMO.compraLineas[nuevaCompra.id] = [];
+      DEMO.compraLineas[nuevaCompra.id] = lineas.map(function(l){
+        var t = norm(l.nombre);
+        var prod = DEMO.inventario.find(function(p){ return norm(p.nombre)===t; });
+        if (!prod){
+          prod = { id: "i"+Date.now()+Math.random(), nombre: l.nombre, zona: "Sin asignar", esperado: 0, unidad: "ud", familia: "Sin clasificar" };
+          DEMO.inventario.push(prod);
+        }
+        return { id: "cl-manual-"+Date.now()+Math.random(), compra_id: nuevaCompra.id, producto_id: prod.id, nombre: prod.nombre, texto_original: l.nombre, unidad_compra: "ud", cantidad: l.cant, precio_unitario: l.precio, codigo: null };
+      });
 
       wait(null, 250).then(function(){
         toast("Compra manual guardada.", "ok");
@@ -1905,7 +2028,10 @@ body{padding-top:28px}
   function renderProductoForm(l){
     return '<div class="lineitem" data-prod-form data-linea="'+l.id+'" data-texto="'+esc(l.texto_original)+'">' +
       '<div class="txt">'+esc(l.texto_original)+'</div>' +
-      '<div class="meta">'+l.cantidad+' '+esc(l.unidad_compra)+' · '+eur(l.precio_unitario)+'/'+esc(l.unidad_compra)+'</div>' +
+      '<div class="row" style="gap:6px; margin:6px 0">' +
+        '<div style="flex:1"><label style="font-size:.75rem">Cantidad ('+esc(l.unidad_compra)+')</label><input type="number" step="any" min="0" data-prod-cant value="'+l.cantidad+'"></div>' +
+        '<div style="flex:1"><label style="font-size:.75rem">Precio/'+esc(l.unidad_compra)+'</label><input type="number" step="any" min="0" data-prod-precio value="'+l.precio_unitario+'"></div>' +
+      '</div>' +
       '<div class="sugs" data-sugs><div class="empty" style="padding:4px 0">Buscando parecidos…</div></div>' +
       '<div data-prod-detalle hidden>' +
         '<div class="grid2" style="margin-bottom:8px">' +
@@ -1926,6 +2052,8 @@ body{padding-top:28px}
       var nuevoInput = qs("[data-prod-nuevo]", form);
       var factorInput = qs("[data-factor]", form);
       var unidadSelect = qs("[data-unidad-base]", form);
+      var cantInput = qs("[data-prod-cant]", form);
+      var precioInput = qs("[data-prod-precio]", form);
       var elegido = null;
 
       sb.rpc("sugerir_productos", { p_negocio: state.negocioId, p_texto: texto }).then(function(r){
@@ -1955,9 +2083,13 @@ body{padding-top:28px}
         var btn = this;
         var factor = parseFloat(factorInput.value);
         if (!factor || factor<=0){ toast("Indica a cuánto equivale.", "err"); return; }
+        var cant = parseFloat(cantInput.value);
+        if (!(cant > 0)){ toast("Indica la cantidad.", "err"); return; }
+        var precio = parseFloat(precioInput.value);
+        if (!(precio >= 0)){ toast("Indica el precio.", "err"); return; }
         var nombreNuevo = elegido ? null : (nuevoInput.value.trim() || texto);
         setLoading(btn, true, "Guardando…");
-        sb.rpc("resolver_linea", { p_linea: lineaId, p_factor_a_base: factor, p_producto: elegido, p_nombre_nuevo: nombreNuevo, p_unidad_base: unidadSelect.value })
+        sb.rpc("resolver_linea", { p_linea: lineaId, p_factor_a_base: factor, p_producto: elegido, p_nombre_nuevo: nombreNuevo, p_unidad_base: unidadSelect.value, p_cantidad: cant, p_precio_unitario: precio })
           .then(function(r){
             if (r.error){ toast(r.error.message, "err"); setLoading(btn,false,null,"Guardar"); return; }
             toast("Producto guardado.", "ok");
@@ -2115,7 +2247,10 @@ body{padding-top:28px}
   function renderVentaLineaForm(l){
     return '<div class="lineitem" data-vl-form data-linea="'+l.id+'">' +
       '<div class="txt">'+esc(l.texto_original)+'</div>' +
-      '<div class="meta">'+l.cantidad+' ud · '+eur(l.precio_unitario)+'/ud</div>' +
+      '<div class="row" style="gap:6px; margin:6px 0">' +
+        '<div style="flex:1"><label style="font-size:.75rem">Cantidad</label><input type="number" step="any" min="0" data-vl-cant value="'+l.cantidad+'"></div>' +
+        '<div style="flex:1"><label style="font-size:.75rem">Precio/ud</label><input type="number" step="any" min="0" data-vl-precio value="'+l.precio_unitario+'"></div>' +
+      '</div>' +
       '<input type="text" data-vl-input placeholder="Plato o artículo" value="'+esc(l.texto_original)+'" style="margin-bottom:8px">' +
       '<button class="btn primary sm" data-vl-guardar type="button">Guardar</button>' +
       '</div>';
@@ -2125,13 +2260,19 @@ body{padding-top:28px}
     qsa("[data-vl-form]", root).forEach(function(form){
       var lineaId = form.dataset.linea;
       var input = qs("[data-vl-input]", form);
+      var cantInput = qs("[data-vl-cant]", form);
+      var precioInput = qs("[data-vl-precio]", form);
       wireAutocomplete(input, function(){ return DEMO.platos.map(function(p){ return p.nombre; }); }, CATALOGO_PLATOS);
       qs("[data-vl-guardar]", form).addEventListener("click", function(){
         var btn = this;
         var nombre = input.value.trim();
         if (!nombre){ toast("Escribe el plato.", "err"); return; }
+        var cant = parseFloat(cantInput.value);
+        if (!(cant > 0)){ toast("Indica la cantidad.", "err"); return; }
+        var precio = parseFloat(precioInput.value);
+        if (!(precio >= 0)){ toast("Indica el precio.", "err"); return; }
         setLoading(btn, true, "Guardando…");
-        sb.rpc("resolver_linea_venta", { p_linea: lineaId, p_nombre: nombre }).then(function(r){
+        sb.rpc("resolver_linea_venta", { p_linea: lineaId, p_nombre: nombre, p_cantidad: cant, p_precio_unitario: precio }).then(function(r){
           if (r.error){ toast(r.error.message, "err"); setLoading(btn,false,null,"Guardar"); return; }
           toast("Plato guardado.", "ok");
           onDone();
