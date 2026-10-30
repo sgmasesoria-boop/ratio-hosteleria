@@ -607,7 +607,10 @@ body{padding-top:28px}
     "pepsi cola": "pepsi", "7up": "seven up"
   };
 
-  function norm(s){ return (s||"").toLowerCase().trim(); }
+  function norm(s){
+    return (s||"").toLowerCase().trim()
+      .normalize("NFD").replace(/[̀-ͯ]/g, "");
+  }
   function trigramas(s){
     s = " " + norm(s) + " ";
     var out = [];
