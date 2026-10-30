@@ -189,6 +189,20 @@ nav.tabs button.active{color:var(--accent)}
 .ac-item:hover, .ac-item.active{background:var(--surface-2)}
 .ac-item .ac-src{font-size:.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; flex:none}
 .ac-item.ac-new{color:var(--focus); font-weight:600}
+/* Recorte de la foto antes de leerla: deja elegir qué parte de la imagen es el documento,
+   para que el lector de texto no mezcle letras del fondo/entorno con las del ticket. */
+.crop-stage{position:relative; width:100%; max-height:60vh; overflow:hidden; border-radius:12px;
+  background:#000; touch-action:none; user-select:none}
+.crop-img{display:block; width:100%; height:auto; max-height:60vh; object-fit:contain; pointer-events:none}
+.crop-box{position:absolute; border:2px solid var(--accent); box-shadow:0 0 0 9999px rgba(0,0,0,.45); touch-action:none; cursor:move}
+.crop-handle{position:absolute; width:22px; height:22px; background:var(--accent); border:2px solid #fff; border-radius:50%; touch-action:none}
+.crop-handle[data-h="nw"]{left:-11px; top:-11px; cursor:nwse-resize}
+.crop-handle[data-h="ne"]{right:-11px; top:-11px; cursor:nesw-resize}
+.crop-handle[data-h="sw"]{left:-11px; bottom:-11px; cursor:nesw-resize}
+.crop-handle[data-h="se"]{right:-11px; bottom:-11px; cursor:nwse-resize}
+details.ocr-raw{margin-top:10px; font-size:.82rem}
+details.ocr-raw summary{cursor:pointer; color:var(--focus)}
+details.ocr-raw pre{white-space:pre-wrap; word-break:break-word; background:var(--surface-2); border-radius:8px; padding:8px; margin-top:6px; max-height:30vh; overflow-y:auto}
 .demobar{position:fixed; top:0; left:0; right:0; z-index:99; background:var(--accent); color:var(--accent-ink);
   text-align:center; font-size:.72rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
   padding:5px 0; padding-top:calc(5px + env(safe-area-inset-top,0px))}
@@ -296,7 +310,7 @@ body{padding-top:28px}
       <div class="camera-cta" id="dropZoneCompras">
         <div class="ic">📷</div>
         <div style="font-weight:700; margin-bottom:6px">Albarán, factura o ticket</div>
-        <div class="lead" style="margin:0 0 12px">Haz una foto clara y bien iluminada del albarán o ticket — la lectura se hace en el propio móvil/navegador. De momento solo lee fotos (JPG/PNG); para PDF, Excel o CSV usa "Meter compra a mano".</div>
+        <div class="lead" style="margin:0 0 12px">Haz una foto clara y bien iluminada del albarán o ticket, llenando el encuadre solo con el documento (evita que se vea la mesa, el mostrador u otros papeles) — después podrás ajustar el recorte. La lectura se hace en el propio móvil/navegador. De momento solo lee fotos (JPG/PNG); para PDF, Excel o CSV usa "Meter compra a mano".</div>
         <div class="upload-row">
           <button class="btn primary" id="btnCamaraCompra" type="button">Hacer foto</button>
           <button class="btn" id="btnGaleriaCompra" type="button">Subir archivo</button>
@@ -325,7 +339,7 @@ body{padding-top:28px}
       <div class="camera-cta" id="dropZoneVentas">
         <div class="ic">📷</div>
         <div style="font-weight:700; margin-bottom:6px">Cinta de control detallada por ticket</div>
-        <div class="lead" style="margin:0 0 12px">Haz una foto clara del detalle línea a línea de cada ticket — no sirve un resumen ni un Z. La lectura se hace en el propio móvil/navegador. De momento solo lee fotos (JPG/PNG); para PDF, Excel o CSV usa "Meter venta a mano".</div>
+        <div class="lead" style="margin:0 0 12px">Haz una foto clara del detalle línea a línea de cada ticket, llenando el encuadre solo con el papel (evita que se vea la mesa o el entorno) — después podrás ajustar el recorte. No sirve un resumen ni un Z. La lectura se hace en el propio móvil/navegador. De momento solo lee fotos (JPG/PNG); para PDF, Excel o CSV usa "Meter venta a mano".</div>
         <div class="upload-row">
           <button class="btn primary" id="btnCamaraVenta" type="button">Hacer foto</button>
           <button class="btn" id="btnGaleriaVenta" type="button">Subir archivo</button>
@@ -839,13 +853,18 @@ body{padding-top:28px}
           cantidad = parseFloat(m2[1].replace(",", ".")); nombre = m2[2]; precio = parseFloat(m2[3].replace(",", "."));
         }
       }
-      if (nombre && cantidad > 0 && precio >= 0){
+      if (nombre && cantidad > 0 && cantidad <= 1000 && precio >= 0 && precio <= 10000){
         nombre = nombre.replace(/[·.\-–]+$/,"").trim();
-        if (nombre.length >= 3) lineas.push({ nombre: nombre.toUpperCase(), cantidad: cantidad, precio_unitario: precio });
+        // Filtro de plausibilidad: si la mayoría de los caracteres del "nombre" no son letras,
+        // es más probable que sea ruido del fondo de la foto que un artículo real.
+        var numLetras = (nombre.match(/[a-zA-ZÀ-ÿ]/g) || []).length;
+        if (nombre.length >= 3 && numLetras / nombre.length >= 0.5) {
+          lineas.push({ nombre: nombre.toUpperCase(), cantidad: cantidad, precio_unitario: precio });
+        }
       }
     });
 
-    return { fecha: fechaDoc, lineas: lineas };
+    return { fecha: fechaDoc, lineas: lineas, textoCrudo: texto || "" };
   }
 
   var sb = {
@@ -1752,6 +1771,108 @@ body{padding-top:28px}
   $("btnInformesCompras").addEventListener("click", function(){ abrirInforme("compras_proveedor"); });
   $("btnInformesVentas").addEventListener("click", function(){ abrirInforme("ventas_dia"); });
 
+  // ---------- RECORTE Y PREPROCESADO DE LA FOTO ANTES DE LEERLA ----------
+  // La cámara del móvil suele capturar también mesa/mostrador/otros papeles alrededor del
+  // documento, y Tesseract lee todo el texto que encuentra en la imagen sin distinguir qué
+  // es el ticket y qué es el entorno. Dejamos que la persona recorte la zona del documento
+  // (opcionalmente) y aplicamos un contraste en blanco y negro antes de leer, para mejorar la
+  // separación entre el texto real y el ruido de fondo.
+  function procesarBlobDesdeImagen(img, sx, sy, sw, sh, cb){
+    var canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(sw));
+    canvas.height = Math.max(1, Math.round(sh));
+    var ctx = canvas.getContext("2d");
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+    try {
+      var id = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      var d = id.data;
+      for (var i = 0; i < d.length; i += 4){
+        var g = d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114;
+        g = (g - 128) * 1.35 + 128;
+        g = g < 0 ? 0 : (g > 255 ? 255 : g);
+        d[i] = d[i+1] = d[i+2] = g;
+      }
+      ctx.putImageData(id, 0, 0);
+    } catch (e) { /* si falla el preprocesado (p.ej. canvas "tainted"), seguimos con la imagen tal cual */ }
+    canvas.toBlob(function(blob){ cb(blob); }, "image/jpeg", 0.92);
+  }
+
+  function mostrarRecorte(file, onListo){
+    var url = URL.createObjectURL(file);
+    openModal("Encuadra el documento");
+    var body = $("modalBody");
+    body.innerHTML =
+      '<div class="lead" style="margin:0 0 10px">Ajusta el recuadro para dejar dentro solo el albarán/ticket, sin el fondo — así se lee mejor.</div>' +
+      '<div class="crop-stage" id="cropStage"><img class="crop-img" id="cropImg" src="'+url+'" alt="Foto a recortar">' +
+        '<div class="crop-box" id="cropBox">' +
+          '<div class="crop-handle" data-h="nw"></div><div class="crop-handle" data-h="ne"></div>' +
+          '<div class="crop-handle" data-h="sw"></div><div class="crop-handle" data-h="se"></div>' +
+        '</div></div>' +
+      '<div class="row" style="gap:8px; margin-top:12px">' +
+        '<button class="btn" type="button" id="btnRecorteCompleta" style="flex:1">Usar foto completa</button>' +
+        '<button class="btn primary" type="button" id="btnRecorteOk" style="flex:1">Usar este recuadro</button>' +
+      '</div>';
+
+    var img = $("cropImg"), stage = $("cropStage"), box = $("cropBox");
+    function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+
+    function initBox(){
+      var w = stage.clientWidth, h = stage.clientHeight;
+      var bw = w*0.82, bh = h*0.72;
+      box.style.left = ((w-bw)/2)+"px"; box.style.top = ((h-bh)/2)+"px";
+      box.style.width = bw+"px"; box.style.height = bh+"px";
+    }
+    if (img.complete && img.naturalWidth) initBox(); else img.addEventListener("load", initBox);
+
+    var drag = null;
+    function onDown(e, mode, handle){
+      drag = { mode: mode, handle: handle, x: e.clientX, y: e.clientY,
+        left: parseFloat(box.style.left), top: parseFloat(box.style.top),
+        width: parseFloat(box.style.width), height: parseFloat(box.style.height) };
+      e.preventDefault(); e.stopPropagation();
+    }
+    box.addEventListener("pointerdown", function(e){ if (e.target === box) onDown(e, "move", null); });
+    qsa(".crop-handle", box).forEach(function(h){
+      h.addEventListener("pointerdown", function(e){ onDown(e, "resize", h.dataset.h); });
+    });
+    function onMove(e){
+      if (!drag) return;
+      var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      var sw = stage.clientWidth, sh = stage.clientHeight, minSize = 40;
+      if (drag.mode === "move"){
+        box.style.left = clamp(drag.left+dx, 0, sw-drag.width)+"px";
+        box.style.top = clamp(drag.top+dy, 0, sh-drag.height)+"px";
+        return;
+      }
+      var l=drag.left, t=drag.top, w=drag.width, h=drag.height;
+      if (drag.handle === "se"){ w = clamp(w+dx, minSize, sw-l); h = clamp(h+dy, minSize, sh-t); }
+      else if (drag.handle === "nw"){ var nl=clamp(l+dx,0,l+w-minSize), nt=clamp(t+dy,0,t+h-minSize); w+=(l-nl); h+=(t-nt); l=nl; t=nt; }
+      else if (drag.handle === "ne"){ var nt2=clamp(t+dy,0,t+h-minSize); w=clamp(w+dx,minSize,sw-l); h+=(t-nt2); t=nt2; }
+      else if (drag.handle === "sw"){ var nl2=clamp(l+dx,0,l+w-minSize); w+=(l-nl2); l=nl2; h=clamp(h+dy,minSize,sh-t); }
+      box.style.left=l+"px"; box.style.top=t+"px"; box.style.width=w+"px"; box.style.height=h+"px";
+    }
+    function onUp(){ drag = null; }
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+
+    function limpiar(){
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      URL.revokeObjectURL(url);
+    }
+    $("btnRecorteCompleta").addEventListener("click", function(){
+      limpiar();
+      procesarBlobDesdeImagen(img, 0, 0, img.naturalWidth, img.naturalHeight, function(blob){ onListo(blob || file); });
+    });
+    $("btnRecorteOk").addEventListener("click", function(){
+      var scaleX = img.naturalWidth / img.clientWidth, scaleY = img.naturalHeight / img.clientHeight;
+      var bx = parseFloat(box.style.left), by = parseFloat(box.style.top);
+      var bw = parseFloat(box.style.width), bh = parseFloat(box.style.height);
+      limpiar();
+      procesarBlobDesdeImagen(img, bx*scaleX, by*scaleY, bw*scaleX, bh*scaleY, function(blob){ onListo(blob || file); });
+    });
+  }
+
   // ---------- SUBIR: COMPRAS ----------
   $("btnCamaraCompra").addEventListener("click", function(){ $("fileCamaraCompra").click(); });
   $("btnGaleriaCompra").addEventListener("click", function(){ $("fileGaleriaCompra").click(); });
@@ -1768,38 +1889,43 @@ body{padding-top:28px}
       return;
     }
 
-    estado.innerHTML = '<div class="row"><span class="spin"></span><span>Leyendo la foto…</span></div>';
-    ocrImagen(file, function(pct){
-      estado.innerHTML = '<div class="row"><span class="spin"></span><span>Leyendo la foto… '+pct+'%</span></div>';
-    }).then(function(texto){
-      var parsed = parsearLineasDocumento(texto);
-      if (!parsed.lineas.length){
-        estado.innerHTML = '<div style="color:var(--warn)">No he podido reconocer artículos en la foto.</div>' +
-          '<div class="lead" style="margin:8px 0 0">Prueba con una foto más clara y bien encuadrada, con buena luz, o usa "Meter compra a mano".</div>';
-        return;
-      }
-      var total = parsed.lineas.reduce(function(s,l){ return s + l.cantidad*l.precio_unitario; }, 0);
-      var nuevaCompra = {
-        id: "ocr-c-" + Date.now(),
-        numero: "Foto-" + new Date(parsed.fecha).toLocaleDateString("es-ES"),
-        fecha: parsed.fecha,
-        total: total,
-        estado: "revisar",
-        tipo_documento: "albaran",
-        proveedor_id: null,
-        proveedores: null
-      };
-      DEMO.compras.unshift(nuevaCompra);
-      DEMO.compraLineas[nuevaCompra.id] = parsed.lineas.map(function(l){
-        return { id: "cl-ocr-"+Date.now()+Math.random(), compra_id: nuevaCompra.id, texto_original: l.nombre, unidad_compra: "ud", cantidad: l.cantidad, precio_unitario: l.precio_unitario, codigo: null, producto_id: null, computa: true };
+    mostrarRecorte(file, function(fotoParaLeer){
+      closeModal();
+      estado.hidden = false;
+      estado.innerHTML = '<div class="row"><span class="spin"></span><span>Leyendo la foto…</span></div>';
+      ocrImagen(fotoParaLeer, function(pct){
+        estado.innerHTML = '<div class="row"><span class="spin"></span><span>Leyendo la foto… '+pct+'%</span></div>';
+      }).then(function(texto){
+        var parsed = parsearLineasDocumento(texto);
+        var verTextoHtml = '<details class="ocr-raw"><summary>Ver texto reconocido</summary><pre>'+esc(parsed.textoCrudo.trim() || "(no se reconoció ningún texto en la foto)")+'</pre></details>';
+        if (!parsed.lineas.length){
+          estado.innerHTML = '<div style="color:var(--warn)">No he podido reconocer artículos en la foto.</div>' +
+            '<div class="lead" style="margin:8px 0 0">Prueba a recortar la foto para dejar solo el albarán/ticket, con buena luz, o usa "Meter compra a mano".</div>' + verTextoHtml;
+          return;
+        }
+        var total = parsed.lineas.reduce(function(s,l){ return s + l.cantidad*l.precio_unitario; }, 0);
+        var nuevaCompra = {
+          id: "ocr-c-" + Date.now(),
+          numero: "Foto-" + new Date(parsed.fecha).toLocaleDateString("es-ES"),
+          fecha: parsed.fecha,
+          total: total,
+          estado: "revisar",
+          tipo_documento: "albaran",
+          proveedor_id: null,
+          proveedores: null
+        };
+        DEMO.compras.unshift(nuevaCompra);
+        DEMO.compraLineas[nuevaCompra.id] = parsed.lineas.map(function(l){
+          return { id: "cl-ocr-"+Date.now()+Math.random(), compra_id: nuevaCompra.id, texto_original: l.nombre, unidad_compra: "ud", cantidad: l.cantidad, precio_unitario: l.precio_unitario, codigo: null, producto_id: null, computa: true };
+        });
+        estado.innerHTML = '<div style="color:var(--good)">Foto leída: '+parsed.lineas.length+' línea'+(parsed.lineas.length===1?"":"s")+' encontrada'+(parsed.lineas.length===1?"":"s")+'. Revisa que cantidad y precio sean correctos.</div>' + verTextoHtml;
+        openModal("Revisar compra");
+        mostrarResolver(nuevaCompra.id, $("modalBody"));
+        cargarCompras();
+      }).catch(function(err){
+        estado.innerHTML = '<div style="color:var(--bad)">No se pudo leer la foto'+(err && err.message ? ": "+esc(err.message) : "")+'.</div>' +
+          '<div class="lead" style="margin:8px 0 0">Inténtalo otra vez, o usa "Meter compra a mano".</div>';
       });
-      estado.innerHTML = '<div style="color:var(--good)">Foto leída: '+parsed.lineas.length+' línea'+(parsed.lineas.length===1?"":"s")+' encontrada'+(parsed.lineas.length===1?"":"s")+'. Revisa que cantidad y precio sean correctos.</div>';
-      openModal("Revisar compra");
-      mostrarResolver(nuevaCompra.id, $("modalBody"));
-      cargarCompras();
-    }).catch(function(err){
-      estado.innerHTML = '<div style="color:var(--bad)">No se pudo leer la foto'+(err && err.message ? ": "+esc(err.message) : "")+'.</div>' +
-        '<div class="lead" style="margin:8px 0 0">Inténtalo otra vez, o usa "Meter compra a mano".</div>';
     });
   }
 
@@ -1819,36 +1945,41 @@ body{padding-top:28px}
       return;
     }
 
-    estado.innerHTML = '<div class="row"><span class="spin"></span><span>Leyendo la foto…</span></div>';
-    ocrImagen(file, function(pct){
-      estado.innerHTML = '<div class="row"><span class="spin"></span><span>Leyendo la foto… '+pct+'%</span></div>';
-    }).then(function(texto){
-      var parsed = parsearLineasDocumento(texto);
-      if (!parsed.lineas.length){
-        estado.innerHTML = '<div style="color:var(--warn)">No he podido reconocer platos en la foto.</div>' +
-          '<div class="lead" style="margin:8px 0 0">Prueba con una foto más clara y bien encuadrada, con buena luz, o usa "Meter venta a mano".</div>';
-        return;
-      }
-      var total = parsed.lineas.reduce(function(s,l){ return s + l.cantidad*l.precio_unitario; }, 0);
-      var nuevaVenta = {
-        id: "ocr-v-" + Date.now(),
-        numero: "Foto-" + new Date(parsed.fecha).toLocaleDateString("es-ES"),
-        fecha: parsed.fecha,
-        total: total,
-        estado: "revisar",
-        tipo_documento: "ticket_z"
-      };
-      DEMO.ventas.unshift(nuevaVenta);
-      DEMO.ventaLineas[nuevaVenta.id] = parsed.lineas.map(function(l){
-        return { id: "vl-ocr-"+Date.now()+Math.random(), venta_id: nuevaVenta.id, texto_original: l.nombre, cantidad: l.cantidad, precio_unitario: l.precio_unitario, plato_id: null };
+    mostrarRecorte(file, function(fotoParaLeer){
+      closeModal();
+      estado.hidden = false;
+      estado.innerHTML = '<div class="row"><span class="spin"></span><span>Leyendo la foto…</span></div>';
+      ocrImagen(fotoParaLeer, function(pct){
+        estado.innerHTML = '<div class="row"><span class="spin"></span><span>Leyendo la foto… '+pct+'%</span></div>';
+      }).then(function(texto){
+        var parsed = parsearLineasDocumento(texto);
+        var verTextoHtml = '<details class="ocr-raw"><summary>Ver texto reconocido</summary><pre>'+esc(parsed.textoCrudo.trim() || "(no se reconoció ningún texto en la foto)")+'</pre></details>';
+        if (!parsed.lineas.length){
+          estado.innerHTML = '<div style="color:var(--warn)">No he podido reconocer platos en la foto.</div>' +
+            '<div class="lead" style="margin:8px 0 0">Prueba a recortar la foto para dejar solo el ticket, con buena luz, o usa "Meter venta a mano".</div>' + verTextoHtml;
+          return;
+        }
+        var total = parsed.lineas.reduce(function(s,l){ return s + l.cantidad*l.precio_unitario; }, 0);
+        var nuevaVenta = {
+          id: "ocr-v-" + Date.now(),
+          numero: "Foto-" + new Date(parsed.fecha).toLocaleDateString("es-ES"),
+          fecha: parsed.fecha,
+          total: total,
+          estado: "revisar",
+          tipo_documento: "ticket_z"
+        };
+        DEMO.ventas.unshift(nuevaVenta);
+        DEMO.ventaLineas[nuevaVenta.id] = parsed.lineas.map(function(l){
+          return { id: "vl-ocr-"+Date.now()+Math.random(), venta_id: nuevaVenta.id, texto_original: l.nombre, cantidad: l.cantidad, precio_unitario: l.precio_unitario, plato_id: null };
+        });
+        estado.innerHTML = '<div style="color:var(--good)">Foto leída: '+parsed.lineas.length+' línea'+(parsed.lineas.length===1?"":"s")+' encontrada'+(parsed.lineas.length===1?"":"s")+'. Revisa que cantidad y precio sean correctos.</div>' + verTextoHtml;
+        openModal("Revisar venta");
+        mostrarResolverVenta(nuevaVenta.id, $("modalBody"));
+        cargarVentas();
+      }).catch(function(err){
+        estado.innerHTML = '<div style="color:var(--bad)">No se pudo leer la foto'+(err && err.message ? ": "+esc(err.message) : "")+'.</div>' +
+          '<div class="lead" style="margin:8px 0 0">Inténtalo otra vez, o usa "Meter venta a mano".</div>';
       });
-      estado.innerHTML = '<div style="color:var(--good)">Foto leída: '+parsed.lineas.length+' línea'+(parsed.lineas.length===1?"":"s")+' encontrada'+(parsed.lineas.length===1?"":"s")+'. Revisa que cantidad y precio sean correctos.</div>';
-      openModal("Revisar venta");
-      mostrarResolverVenta(nuevaVenta.id, $("modalBody"));
-      cargarVentas();
-    }).catch(function(err){
-      estado.innerHTML = '<div style="color:var(--bad)">No se pudo leer la foto'+(err && err.message ? ": "+esc(err.message) : "")+'.</div>' +
-        '<div class="lead" style="margin:8px 0 0">Inténtalo otra vez, o usa "Meter venta a mano".</div>';
     });
   }
 
