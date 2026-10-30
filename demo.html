@@ -729,13 +729,24 @@ body{padding-top:28px}
         if (q.single) return wait({ data: DEMO.compras.find(function(c){ return c.id===q.filters.id; }) || null, error: null });
         return wait({ data: DEMO.compras, error: null });
       case "compra_lineas":
-        return wait({ data: DEMO.compraLineas[q.filters.compra_id] || [], error: null });
+        // Las líneas ya resueltas (con producto_id) se quedan en compraLineas -no se borran-, así
+        // que aquí hay que aplicar de verdad el filtro "producto_id es null" que pide la pantalla
+        // de revisar, o las líneas resueltas volverían a salir como pendientes para siempre.
+        var lineasC = DEMO.compraLineas[q.filters.compra_id] || [];
+        if (q.filters.hasOwnProperty("producto_id")){
+          lineasC = lineasC.filter(function(l){ return q.filters.producto_id === null ? (l.producto_id == null) : l.producto_id === q.filters.producto_id; });
+        }
+        return wait({ data: lineasC, error: null });
       case "ventas":
         if (q.count) return wait({ data: null, error: null, count: DEMO.ventas.filter(function(v){ return v.estado==="revisar"; }).length });
         if (q.single) return wait({ data: DEMO.ventas.find(function(v){ return v.id===q.filters.id; }) || null, error: null });
         return wait({ data: DEMO.ventas, error: null });
       case "venta_lineas":
-        return wait({ data: DEMO.ventaLineas[q.filters.venta_id] || [], error: null });
+        var lineasV = DEMO.ventaLineas[q.filters.venta_id] || [];
+        if (q.filters.hasOwnProperty("plato_id")){
+          lineasV = lineasV.filter(function(l){ return q.filters.plato_id === null ? (l.plato_id == null) : l.plato_id === q.filters.plato_id; });
+        }
+        return wait({ data: lineasV, error: null });
       case "v_impacto_subidas":
         return wait({ data: DEMO.subidas, error: null });
       case "v_ahorro_proveedor":
@@ -782,8 +793,21 @@ body{padding-top:28px}
         return wait({ data: null, error: null });
       }
       if (name === "resolver_linea"){
+        // Resolver una línea es ENLAZARLA a un producto (existente o nuevo), nunca borrarla: si
+        // se borrase, el ticket/albarán confirmado se quedaría sin esa línea y no habría nada
+        // que pinchar — exactamente el fallo que hacía que un artículo como "Caña Alhambra" (o
+        // cualquier otro) dejara de ser clicable al terminar de revisarlo.
+        var tnProd = norm(args.p_nombre_nuevo || "");
+        var prodR = args.p_producto ? DEMO.inventario.find(function(p){ return p.id === args.p_producto; }) : null;
+        if (!prodR && tnProd) prodR = DEMO.inventario.find(function(p){ return norm(p.nombre) === tnProd; });
+        if (!prodR){
+          prodR = { id: "i"+Date.now()+Math.random(), nombre: args.p_nombre_nuevo || "Producto", zona: "Sin asignar", esperado: 0, unidad: args.p_unidad_base || "ud", familia: "Sin clasificar" };
+          DEMO.inventario.push(prodR);
+        }
         Object.keys(DEMO.compraLineas).forEach(function(cid){
-          DEMO.compraLineas[cid] = DEMO.compraLineas[cid].filter(function(l){ return l.id !== args.p_linea; });
+          DEMO.compraLineas[cid].forEach(function(l){
+            if (l.id === args.p_linea){ l.producto_id = prodR.id; l.nombre = prodR.nombre; }
+          });
         });
         return wait({ data: null, error: null });
       }
@@ -793,13 +817,18 @@ body{padding-top:28px}
         return wait({ data: null, error: null });
       }
       if (name === "resolver_linea_venta"){
-        Object.keys(DEMO.ventaLineas).forEach(function(vid){
-          DEMO.ventaLineas[vid] = DEMO.ventaLineas[vid].filter(function(l){ return l.id !== args.p_linea; });
-        });
+        // Mismo criterio que arriba: enlazar la línea al plato/artículo, no borrarla.
         var tp = norm(args.p_nombre);
-        if (tp && !DEMO.platos.find(function(p){ return norm(p.nombre)===tp; })){
-          DEMO.platos.push({ id: "pl"+Date.now(), nombre: args.p_nombre });
+        var platoR = DEMO.platos.find(function(p){ return norm(p.nombre) === tp; });
+        if (!platoR){
+          platoR = { id: "pl"+Date.now()+Math.random(), nombre: args.p_nombre };
+          DEMO.platos.push(platoR);
         }
+        Object.keys(DEMO.ventaLineas).forEach(function(vid){
+          DEMO.ventaLineas[vid].forEach(function(l){
+            if (l.id === args.p_linea){ l.plato_id = platoR.id; l.nombre = platoR.nombre; }
+          });
+        });
         return wait({ data: null, error: null });
       }
       if (name === "confirmar_venta"){
@@ -2112,7 +2141,7 @@ body{padding-top:28px}
     contenedor.innerHTML = '<div class="empty"><span class="spin"></span></div>';
     Promise.all([
       sb.from("ventas").select("id,numero,fecha,total,estado").eq("id", ventaId).single(),
-      sb.from("venta_lineas").select("id,texto_original,cantidad,precio_unitario").eq("venta_id", ventaId)
+      sb.from("venta_lineas").select("id,texto_original,cantidad,precio_unitario").eq("venta_id", ventaId).is("plato_id", null)
     ]).then(function(res){
       var venta = res[0].data, lineas = res[1].data || [];
       if (!venta){ contenedor.innerHTML = ""; return; }
