@@ -407,13 +407,30 @@ body{padding-top:28px}
 
     <section id="almacenView" class="view">
       <h1>Artículos / Almacén</h1>
-      <p class="lead">De la A a la Z. Toca un producto para ver su ficha completa con el historial de entradas y salidas.</p>
-      <button class="btn primary" id="btnRegularizarInventario" type="button" style="margin-bottom:14px">🔄 Regularizar inventario</button>
-      <div class="searchbox">
-        <span>Buscar producto</span>
-        <div class="searchbox-input"><span class="ic">🔍</span><input type="text" id="almacenBuscar" placeholder="Nombre del producto…"></div>
+      <div class="authtabs" id="almSubtabs">
+        <button data-almsub="productos" class="active" type="button">Productos</button>
+        <button data-almsub="platos" type="button">Platos</button>
       </div>
-      <div id="inventarioList"><div class="empty">Cargando…</div></div>
+
+      <div id="almProductosPanel">
+        <p class="lead">De la A a la Z. Toca un producto para ver su ficha completa con el historial de entradas y salidas.</p>
+        <button class="btn primary" id="btnRegularizarInventario" type="button" style="margin-bottom:14px">🔄 Regularizar inventario</button>
+        <div class="searchbox">
+          <span>Buscar producto</span>
+          <div class="searchbox-input"><span class="ic">🔍</span><input type="text" id="almacenBuscar" placeholder="Nombre del producto…"></div>
+        </div>
+        <div id="inventarioList"><div class="empty">Cargando…</div></div>
+      </div>
+
+      <div id="almPlatosPanel" hidden>
+        <p class="lead">El escandallo de cada plato (sus ingredientes y cantidades) vive en su ficha — toca un plato para definirlo o revisarlo.</p>
+        <button class="btn primary" id="btnCrearPlato" type="button" style="margin-bottom:14px">+ Crear plato</button>
+        <div class="searchbox">
+          <span>Buscar plato</span>
+          <div class="searchbox-input"><span class="ic">🔍</span><input type="text" id="platosBuscar" placeholder="Nombre del plato…"></div>
+        </div>
+        <div id="platosList"><div class="empty">Cargando…</div></div>
+      </div>
     </section>
 
   </main>
@@ -517,6 +534,15 @@ body{padding-top:28px}
       { id: "pl2", nombre: "Ensaladilla Rusa" },
       { id: "pl3", nombre: "Caña Alhambra" }
     ],
+    // Escandallo = receta de cada plato: qué productos del almacén lleva y en qué cantidad por
+    // ración. Con eso se calcula el coste real (y el margen real, sustituyendo al margen de
+    // ejemplo de "rentabilidad"). Si un plato no tiene líneas aquí, es que aún no se ha definido.
+    escandallos: {
+      pl1: [
+        { id: "esc1", producto_id: "i3", nombre: "Patatas", cantidad: 0.2, unidad: "kg" },
+        { id: "esc2", producto_id: "i4", nombre: "Aceite de oliva", cantidad: 0.03, unidad: "l" }
+      ]
+    },
     compras: [
       { id: "c1", numero: "A-2026-0931", fecha: "2026-10-15", total: 612.40, estado: "confirmada", tipo_documento: "albaran", proveedor_id: "p1", proveedores: { nombre: "Distribuciones Hosteleras Granada SL" } },
       { id: "c2", numero: "A-2026-0944", fecha: "2026-10-22", total: 284.95, estado: "revisar", tipo_documento: "albaran", proveedor_id: "p2", proveedores: { nombre: "Pescados Costa Tropical" } },
@@ -1402,12 +1428,129 @@ body{padding-top:28px}
     renderFichaPlatoVentas(id, plato ? plato.nombre : "");
   }
 
+  // ---------- ESCANDALLO: receta de cada plato (ingredientes + cantidad por ración) ----------
+  // El coste de cada ingrediente sale de su última entrada de compra (mismo criterio que ya se
+  // usa para valorar las mermas por FIFO); si a algún ingrediente le falta ese dato, el escandallo
+  // se marca como "incompleto" en vez de inventar un precio.
+  function costeUnitarioProducto(productoId){
+    var item = DEMO.inventario.find(function(p){ return p.id === productoId; });
+    if (!item) return null;
+    var entradas = (DEMO.movimientos[item.nombre] || []).filter(function(m){ return m.tipo === "entrada" && m.precio != null; });
+    if (!entradas.length) return null;
+    entradas = entradas.slice().sort(function(a,b){ return a.fecha < b.fecha ? 1 : -1; });
+    return entradas[0].precio;
+  }
+
+  function calcularCosteEscandallo(platoId){
+    var lineas = DEMO.escandallos[platoId] || [];
+    if (!lineas.length) return null;
+    var total = 0, incompleto = false;
+    lineas.forEach(function(l){
+      var pu = costeUnitarioProducto(l.producto_id);
+      if (pu == null){ incompleto = true; return; }
+      total += pu * l.cantidad;
+    });
+    return { total: total, incompleto: incompleto };
+  }
+
+  // Precio de venta medio: últimos 30 días si hay ventas recientes, si no el histórico completo —
+  // mismo criterio que "Rentabilidad de platos", para no tener dos cálculos de margen distintos.
+  function precioVentaMedioPlato(platoId){
+    var hoy = new Date().toISOString().slice(0,10);
+    var hace30 = new Date(Date.now() - 30*86400000).toISOString().slice(0,10);
+    function medir(filtrarRango){
+      var cant = 0, ingresos = 0;
+      DEMO.ventas.forEach(function(v){
+        if (filtrarRango && !enRango(v.fecha, hace30, hoy)) return;
+        (DEMO.ventaLineas[v.id] || []).forEach(function(l){
+          if (l.plato_id !== platoId) return;
+          cant += l.cantidad; ingresos += l.cantidad * l.precio_unitario;
+        });
+      });
+      return cant ? ingresos/cant : null;
+    }
+    return medir(true) || medir(false);
+  }
+
+  function renderEscandalloPlato(platoId){
+    var lineas = DEMO.escandallos[platoId] || [];
+    var coste = calcularCosteEscandallo(platoId);
+    var precioVenta = precioVentaMedioPlato(platoId);
+    var cuerpo = '<h2 style="margin-top:0">Escandallo</h2>';
+    if (!lineas.length){
+      cuerpo += '<div class="empty">Sin ingredientes definidos todavía.</div>';
+    } else {
+      cuerpo += '<div class="stack">' + lineas.map(function(l){
+        var item = DEMO.inventario.find(function(p){ return p.id === l.producto_id; });
+        var pu = costeUnitarioProducto(l.producto_id);
+        var subtotal = pu != null ? pu * l.cantidad : null;
+        return '<div class="row between" style="gap:10px">' +
+          '<div style="flex:1; min-width:0">' +
+            '<div class="txt" style="font-weight:700; font-size:.88rem; margin:0">'+esc(item ? item.nombre : l.nombre)+'</div>' +
+            '<div class="meta" style="margin:0">'+l.cantidad+' '+esc(l.unidad)+(pu != null ? ' · '+eur(pu)+'/'+esc(l.unidad) : ' · sin precio de compra todavía')+'</div>' +
+          '</div>' +
+          '<span class="meta" style="margin:0; white-space:nowrap">'+(subtotal != null ? eur(subtotal) : '—')+'</span>' +
+          '<button class="btn ghost sm" type="button" data-esc-quitar="'+l.id+'" style="width:auto; padding:6px 10px">✕</button>' +
+        '</div>';
+      }).join("") + '</div>';
+    }
+
+    cuerpo +=
+      '<div class="row" style="gap:8px; margin-top:12px">' +
+        '<input type="text" id="escIngredienteInput" placeholder="Producto…" style="flex:1">' +
+        '<input type="number" step="any" min="0" id="escCantidadInput" placeholder="Cant." style="width:84px">' +
+      '</div>' +
+      '<button class="btn sm" id="escAnadir" type="button" style="width:auto; margin-top:8px">+ Añadir ingrediente</button>';
+
+    var resumen = "";
+    if (coste){
+      var margenTxt = "—";
+      if (precioVenta){
+        var margenPct = precioVenta > 0 ? Math.round(((precioVenta - coste.total) / precioVenta) * 100) : null;
+        margenTxt = (margenPct != null ? margenPct+"% margen" : "—") + ' · venta media '+eur(precioVenta);
+      } else {
+        margenTxt = "sin ventas para calcular el margen";
+      }
+      resumen = '<div class="card tight row between" style="margin-bottom:14px">' +
+          '<span class="meta" style="margin:0">Coste por ración'+(coste.incompleto ? ' (incompleto)' : '')+'</span>' +
+          '<span class="txt" style="margin:0; text-align:right">'+eur(coste.total)+'<br><span class="meta" style="margin:0">'+margenTxt+'</span></span>' +
+        '</div>';
+    }
+    return resumen + cuerpo;
+  }
+
+  function wireEscandalloPlato(platoId, root, onCambio){
+    var inputProd = qs("#escIngredienteInput", root);
+    wireAutocomplete(inputProd, function(){ return DEMO.inventario.map(function(p){ return p.nombre; }); }, []);
+    qsa("[data-esc-quitar]", root).forEach(function(btn){
+      btn.addEventListener("click", function(){
+        DEMO.escandallos[platoId] = (DEMO.escandallos[platoId] || []).filter(function(l){ return l.id !== btn.dataset.escQuitar; });
+        onCambio();
+      });
+    });
+    qs("#escAnadir", root).addEventListener("click", function(){
+      var texto = inputProd.value.trim();
+      var cantInput = qs("#escCantidadInput", root);
+      var cant = parseFloat(cantInput.value);
+      if (!texto){ toast("Escribe el nombre del producto.", "err"); return; }
+      if (!(cant > 0)){ toast("Indica la cantidad.", "err"); return; }
+      var item = DEMO.inventario.find(function(p){ return norm(p.nombre) === norm(texto); });
+      if (!item){ toast('"'+texto+'" no existe en Artículos/Almacén. Date de alta primero una compra con ese producto.', "err"); return; }
+      DEMO.escandallos[platoId] = DEMO.escandallos[platoId] || [];
+      var existente = DEMO.escandallos[platoId].find(function(l){ return l.producto_id === item.id; });
+      if (existente) existente.cantidad = cant;
+      else DEMO.escandallos[platoId].push({ id: "esc"+Date.now()+Math.random(), producto_id: item.id, nombre: item.nombre, cantidad: cant, unidad: item.unidad });
+      toast("Ingrediente añadido.", "ok");
+      onCambio();
+    });
+  }
+
   function renderFichaPlatoVentas(platoId, nombre){
     $("modalTitle").textContent = nombre;
     var rows = DEMO.ventas.filter(function(v){
       return (DEMO.ventaLineas[v.id] || []).some(function(l){ return l.plato_id === platoId; });
     }).slice().sort(function(a,b){ return a.fecha < b.fecha ? 1 : -1; });
-    var html = '<h2 style="margin-top:0">Historial de ventas</h2>';
+    var html = renderEscandalloPlato(platoId) + '<h2 style="margin-top:16px">Historial de ventas</h2>';
     if (!rows.length){
       html += '<div class="empty">Sin ventas registradas de este plato.</div>';
     } else {
@@ -1419,6 +1562,7 @@ body{padding-top:28px}
       }).join("");
     }
     $("modalBody").innerHTML = html;
+    wireEscandalloPlato(platoId, $("modalBody"), function(){ renderFichaPlatoVentas(platoId, nombre); });
     qsa("[data-fp-ticket]", $("modalBody")).forEach(function(el){
       el.addEventListener("click", function(){
         renderTicketSoloLectura(el.dataset.fpTicket, nombre, function(){ renderFichaPlatoVentas(platoId, nombre); });
@@ -1464,8 +1608,19 @@ body{padding-top:28px}
       if (!keys.length){ body.innerHTML = '<div class="empty">Sin platos vendidos en el periodo.</div>'; return; }
       body.innerHTML = keys.map(function(k){
         var p = porPlato[k];
-        var ref = DEMO.rentabilidad.find(function(x){ return norm(x.plato)===norm(p.nombre); });
-        var margenTxt = ref ? ref.margen_pct+"% margen · " : "";
+        // Si el plato ya tiene escandallo, el margen real (coste de ingredientes vs. precio medio
+        // de venta en este periodo) manda sobre el margen de ejemplo; si no, se usa ese de ejemplo
+        // para no dejar la pantalla vacía mientras se van definiendo las recetas.
+        var coste = calcularCosteEscandallo(k);
+        var margenTxt = "";
+        if (coste && p.cantidad){
+          var precioMedioRango = p.ingresos / p.cantidad;
+          var margenPct = precioMedioRango > 0 ? Math.round(((precioMedioRango - coste.total) / precioMedioRango) * 100) : null;
+          margenTxt = margenPct != null ? margenPct+"% margen real"+(coste.incompleto?" (incompleto)":"")+" · " : "";
+        } else {
+          var ref = DEMO.rentabilidad.find(function(x){ return norm(x.plato)===norm(p.nombre); });
+          margenTxt = ref ? ref.margen_pct+"% margen (de ejemplo, sin escandallo) · " : "";
+        }
         return '<div class="lineitem" data-rp-plato="'+p.id+'" style="cursor:pointer">' +
           '<div class="row between"><span class="txt">'+esc(p.nombre)+'</span><span class="meta" style="margin:0">'+margenTxt+eur(p.ingresos)+'</span></div>' +
           '<div class="meta">'+p.cantidad+' ud vendidas</div></div>';
@@ -2540,6 +2695,76 @@ body{padding-top:28px}
       input.addEventListener("input", function(){ pintarAlmacenLista(input.value); });
     }
     pintarAlmacenLista(input.value);
+
+    var inputPlatos = $("platosBuscar");
+    if (!inputPlatos.dataset.wired){
+      inputPlatos.dataset.wired = "1";
+      inputPlatos.addEventListener("input", function(){ pintarPlatosLista(inputPlatos.value); });
+    }
+    pintarPlatosLista(inputPlatos.value);
+
+    if (!$("almSubtabs").dataset.wired){
+      $("almSubtabs").dataset.wired = "1";
+      qsa("[data-almsub]", $("almSubtabs")).forEach(function(b){
+        b.addEventListener("click", function(){
+          qsa("[data-almsub]", $("almSubtabs")).forEach(function(x){ x.classList.toggle("active", x===b); });
+          $("almProductosPanel").hidden = b.dataset.almsub !== "productos";
+          $("almPlatosPanel").hidden = b.dataset.almsub !== "platos";
+        });
+      });
+    }
+
+    if (!$("btnCrearPlato").dataset.wired){
+      $("btnCrearPlato").dataset.wired = "1";
+      $("btnCrearPlato").addEventListener("click", abrirCrearPlato);
+    }
+  }
+
+  function abrirCrearPlato(){
+    openModal("Nuevo plato");
+    $("modalBody").innerHTML =
+      '<label>Nombre del plato</label>' +
+      '<input type="text" id="nuevoPlatoNombre" placeholder="Ej. Ensalada César" style="margin-bottom:14px">' +
+      '<button class="btn primary" id="guardarNuevoPlato" type="button" style="width:100%">Crear plato</button>';
+    setTimeout(function(){ $("nuevoPlatoNombre").focus(); }, 50);
+    $("guardarNuevoPlato").addEventListener("click", function(){
+      var nombre = $("nuevoPlatoNombre").value.trim();
+      if (!nombre){ toast("Escribe el nombre del plato.", "err"); return; }
+      if (DEMO.platos.some(function(p){ return norm(p.nombre)===norm(nombre); })){
+        toast("Ya existe un plato con ese nombre.", "err");
+        return;
+      }
+      var nuevo = { id: "pl"+Date.now(), nombre: nombre };
+      DEMO.platos.push(nuevo);
+      pintarPlatosLista($("platosBuscar").value);
+      abrirFichaPlato(nuevo.id);
+    });
+  }
+
+  // Igual que la lista de productos, pero mostrando si el plato ya tiene escandallo (y su coste)
+  // o todavía no, para saber de un vistazo qué queda por definir.
+  function pintarPlatosLista(q){
+    var el = $("platosList");
+    var t = norm(q);
+    var items = DEMO.platos
+      .filter(function(p){ return !t || norm(p.nombre).indexOf(t) > -1; })
+      .slice()
+      .sort(function(a,b){ return norm(a.nombre) < norm(b.nombre) ? -1 : (norm(a.nombre) > norm(b.nombre) ? 1 : 0); });
+    if (!items.length){ el.innerHTML = '<div class="empty">'+(t?"Sin resultados.":"Sin platos todavía.")+'</div>'; return; }
+    el.innerHTML = items.map(function(p){
+      var coste = calcularCosteEscandallo(p.id);
+      var estadoTxt = coste ? 'Coste '+eur(coste.total)+(coste.incompleto?' (incompleto)':'') : 'Sin escandallo';
+      return '<div class="lineitem" data-plato="'+p.id+'" style="cursor:pointer; padding:12px 14px">' +
+        '<div class="row between">' +
+          '<span class="txt" style="margin:0">'+esc(p.nombre)+'</span>' +
+          '<span class="meta" style="margin:0; white-space:nowrap">'+estadoTxt+'</span>' +
+        '</div></div>';
+    }).join("");
+    qsa("[data-plato]", el).forEach(function(card){
+      card.addEventListener("click", function(){
+        abrirFichaPlato(card.dataset.plato);
+      });
+    });
   }
 
   // una sola línea por producto (como la ficha de un cliente en el CRM): nombre, zona y cantidad.
@@ -2738,6 +2963,7 @@ body{padding-top:28px}
     if (t.length < 1){ box.innerHTML = '<div class="empty">Escribe para buscar.</div>'; return; }
 
     var productos = DEMO.inventario.filter(function(p){ return norm(p.nombre).indexOf(t) > -1; });
+    var platos = DEMO.platos.filter(function(p){ return norm(p.nombre).indexOf(t) > -1; });
     var proveedores = DEMO.proveedores.filter(function(p){ return norm(p.nombre).indexOf(t) > -1; });
     var docsCompra = DEMO.compras.filter(function(c){
       var prov = c.proveedores ? c.proveedores.nombre : "";
@@ -2750,6 +2976,13 @@ body{padding-top:28px}
       html += '<h2>Productos</h2>' + productos.map(function(p){
         return '<div class="lineitem" data-ficha-prod="'+p.id+'" style="cursor:pointer">' +
           '<span class="txt">'+esc(p.nombre)+'</span><div class="meta">'+esc(p.zona)+' · '+p.esperado+' '+esc(p.unidad)+'</div></div>';
+      }).join("");
+    }
+    if (platos.length){
+      html += '<h2 style="margin-top:14px">Platos</h2>' + platos.map(function(p){
+        var coste = calcularCosteEscandallo(p.id);
+        return '<div class="lineitem" data-ficha-plato="'+p.id+'" style="cursor:pointer">' +
+          '<span class="txt">'+esc(p.nombre)+'</span><div class="meta">'+(coste ? 'Coste '+eur(coste.total) : 'Sin escandallo')+'</div></div>';
       }).join("");
     }
     if (proveedores.length){
@@ -2775,6 +3008,7 @@ body{padding-top:28px}
     box.innerHTML = html;
 
     qsa("[data-ficha-prod]", box).forEach(function(el){ el.addEventListener("click", function(){ $("modalTitle").textContent=""; renderFichaProducto(el.dataset.fichaProd); }); });
+    qsa("[data-ficha-plato]", box).forEach(function(el){ el.addEventListener("click", function(){ abrirFichaPlato(el.dataset.fichaPlato); }); });
     qsa("[data-ficha-prov]", box).forEach(function(el){ el.addEventListener("click", function(){ renderFichaProveedor(el.dataset.fichaProv); }); });
     qsa("[data-ficha-doc-compra]", box).forEach(function(el){ el.addEventListener("click", function(){ abrirCompra(el.dataset.fichaDocCompra); }); });
     qsa("[data-ficha-doc-venta]", box).forEach(function(el){ el.addEventListener("click", function(){ abrirVenta(el.dataset.fichaDocVenta); }); });
