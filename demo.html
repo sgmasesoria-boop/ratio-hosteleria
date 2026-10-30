@@ -1087,30 +1087,6 @@ body{padding-top:28px}
         }).join("");
       }
     },
-    rentabilidad: {
-      nombre: "Rentabilidad de platos", conFecha: true,
-      render: function(desde, hasta){
-        var ventasRango = DEMO.ventas.filter(function(v){ return enRango(v.fecha, desde, hasta); });
-        var porPlato = {};
-        ventasRango.forEach(function(v){
-          (DEMO.ventaLineas[v.id] || []).forEach(function(l){
-            if (!l.plato_id) return;
-            var k = l.plato_id;
-            if (!porPlato[k]) porPlato[k] = { nombre: l.nombre, cantidad: 0, ingresos: 0 };
-            porPlato[k].cantidad += l.cantidad;
-            porPlato[k].ingresos += l.cantidad * l.precio_unitario;
-          });
-        });
-        var keys = Object.keys(porPlato);
-        if (!keys.length) return '<div class="empty">Sin platos vendidos en el periodo.</div>';
-        return keys.map(function(k){
-          var p = porPlato[k];
-          var ref = DEMO.rentabilidad.find(function(x){ return norm(x.plato)===norm(p.nombre); });
-          var margenTxt = ref ? ref.margen_pct+"% margen · " : "";
-          return statline(p.nombre+' ('+p.cantidad+' ud)', margenTxt+eur(p.ingresos));
-        }).join("");
-      }
-    }
   };
 
   function cmpLine(nombre, pct, pctCls, izqLabel, izqCls, derLabel, derCls, provLine){
@@ -1186,17 +1162,21 @@ body{padding-top:28px}
     $("modalBody").innerHTML = html;
     $("vdVolverDias").addEventListener("click", renderVentasDiaNivelDias);
     qsa("[data-vd-ticket]", $("modalBody")).forEach(function(el){
-      el.addEventListener("click", function(){ renderVentasDiaNivelDetalle(el.dataset.vdTicket, diaFecha); });
+      el.addEventListener("click", function(){
+        renderTicketSoloLectura(el.dataset.vdTicket, fecha(diaFecha), function(){ renderVentasDiaNivelTickets(diaFecha); });
+      });
     });
   }
 
-  function renderVentasDiaNivelDetalle(id, diaFecha){
+  // Detalle de ticket de solo lectura, reutilizado desde cualquier sitio que llegue a un ticket
+  // (ventas por día, rentabilidad de platos…): mismo criterio en todos los menús, sin duplicar.
+  function renderTicketSoloLectura(id, volverLabel, volverFn){
     var v = DEMO.ventas.find(function(x){ return x.id === id; });
     if (!v) return;
     $("modalTitle").textContent = v.numero || v.tipo_documento;
     var lineas = DEMO.ventaLineas[id] || [];
     var html =
-      '<button class="btn ghost sm" id="vdVolverTickets" type="button" style="width:auto; margin-bottom:14px">← '+fecha(diaFecha)+'</button>' +
+      '<button class="btn ghost sm" id="tslVolver" type="button" style="width:auto; margin-bottom:14px">← '+esc(volverLabel)+'</button>' +
       '<div class="card tight stack" style="margin-bottom:10px">' +
         '<div class="row between"><span class="txt" style="margin:0">'+esc(v.numero||v.tipo_documento)+'</span><span class="chip '+v.estado+'">'+v.estado+'</span></div>' +
         '<div class="meta" style="margin:0">'+fecha(v.fecha)+' · '+eur(v.total)+'</div>' +
@@ -1213,7 +1193,89 @@ body{padding-top:28px}
       }).join("");
     }
     $("modalBody").innerHTML = html;
-    $("vdVolverTickets").addEventListener("click", function(){ renderVentasDiaNivelTickets(diaFecha); });
+    $("tslVolver").addEventListener("click", volverFn);
+  }
+
+  // ---------- RENTABILIDAD DE PLATOS: plato -> tickets donde se vendió -> detalle del ticket ----------
+  // Mismo patrón circular que compras/proveedor: se calcula sobre lo realmente vendido en el rango
+  // de fechas elegido, para poder comparar periodos.
+  function abrirRentabilidad(){
+    openModal("Rentabilidad de platos");
+    renderRentabilidadNivelPlatos();
+  }
+
+  function renderRentabilidadNivelPlatos(presetDesde, presetHasta){
+    var hoy = new Date().toISOString().slice(0,10);
+    var hace30 = new Date(Date.now() - 30*86400000).toISOString().slice(0,10);
+    $("modalTitle").textContent = "Rentabilidad de platos";
+    var html =
+      '<div class="reportparams">' +
+        '<div><label>Desde</label><input type="date" id="rpDesde" value="'+(presetDesde||hace30)+'"></div>' +
+        '<div><label>Hasta</label><input type="date" id="rpHasta" value="'+(presetHasta||hoy)+'"></div>' +
+      '</div>' +
+      '<div id="rpBody"></div>';
+    $("modalBody").innerHTML = html;
+
+    function pintar(){
+      var d = $("rpDesde").value, h = $("rpHasta").value;
+      var ventasRango = DEMO.ventas.filter(function(v){ return enRango(v.fecha, d, h); });
+      var porPlato = {};
+      ventasRango.forEach(function(v){
+        (DEMO.ventaLineas[v.id] || []).forEach(function(l){
+          if (!l.plato_id) return;
+          var k = l.plato_id;
+          if (!porPlato[k]) porPlato[k] = { id: k, nombre: l.nombre, cantidad: 0, ingresos: 0 };
+          porPlato[k].cantidad += l.cantidad;
+          porPlato[k].ingresos += l.cantidad * l.precio_unitario;
+        });
+      });
+      var keys = Object.keys(porPlato).sort(function(a,b){ return porPlato[b].ingresos - porPlato[a].ingresos; });
+      var body = $("rpBody");
+      if (!keys.length){ body.innerHTML = '<div class="empty">Sin platos vendidos en el periodo.</div>'; return; }
+      body.innerHTML = keys.map(function(k){
+        var p = porPlato[k];
+        var ref = DEMO.rentabilidad.find(function(x){ return norm(x.plato)===norm(p.nombre); });
+        var margenTxt = ref ? ref.margen_pct+"% margen · " : "";
+        return '<div class="lineitem" data-rp-plato="'+p.id+'" style="cursor:pointer">' +
+          '<div class="row between"><span class="txt">'+esc(p.nombre)+'</span><span class="meta" style="margin:0">'+margenTxt+eur(p.ingresos)+'</span></div>' +
+          '<div class="meta">'+p.cantidad+' ud vendidas</div></div>';
+      }).join("");
+      qsa("[data-rp-plato]", body).forEach(function(el){
+        el.addEventListener("click", function(){
+          var p = porPlato[el.dataset.rpPlato];
+          renderRentabilidadNivelTickets(p.id, p.nombre, d, h);
+        });
+      });
+    }
+    pintar();
+    $("rpDesde").addEventListener("change", pintar);
+    $("rpHasta").addEventListener("change", pintar);
+  }
+
+  function renderRentabilidadNivelTickets(platoId, platoNombre, desde, hasta){
+    $("modalTitle").textContent = platoNombre;
+    var rows = DEMO.ventas.filter(function(v){
+      if (!enRango(v.fecha, desde, hasta)) return false;
+      return (DEMO.ventaLineas[v.id] || []).some(function(l){ return l.plato_id === platoId; });
+    }).slice().sort(function(a,b){ return a.fecha < b.fecha ? 1 : -1; });
+    var html = '<button class="btn ghost sm" id="rpVolverPlatos" type="button" style="width:auto; margin-bottom:14px">← Rentabilidad de platos</button>';
+    if (!rows.length){
+      html += '<div class="empty">Sin tickets con este plato en el periodo.</div>';
+    } else {
+      html += rows.map(function(v){
+        var linea = (DEMO.ventaLineas[v.id] || []).find(function(l){ return l.plato_id === platoId; });
+        return '<div class="lineitem" data-rp-ticket="'+v.id+'" style="cursor:pointer">' +
+          '<div class="row between"><span class="txt">'+fecha(v.fecha)+' · '+esc(v.numero||v.tipo_documento)+'</span><span class="chip '+v.estado+'">'+v.estado+'</span></div>' +
+          '<div class="meta">'+(linea?linea.cantidad:"")+' ud en este ticket</div></div>';
+      }).join("");
+    }
+    $("modalBody").innerHTML = html;
+    $("rpVolverPlatos").addEventListener("click", function(){ renderRentabilidadNivelPlatos(desde, hasta); });
+    qsa("[data-rp-ticket]", $("modalBody")).forEach(function(el){
+      el.addEventListener("click", function(){
+        renderTicketSoloLectura(el.dataset.rpTicket, platoNombre, function(){ renderRentabilidadNivelTickets(platoId, platoNombre, desde, hasta); });
+      });
+    });
   }
 
   // ---------- COMPRAS POR PROVEEDOR: informe único (fecha + proveedor, ambos opcionales) y en cadena ----------
@@ -1372,6 +1434,7 @@ body{padding-top:28px}
     if (id === "compras_proveedor") return abrirComprasProveedor();
     if (id === "mov_familia") return abrirMovimientoFamilia();
     if (id === "ventas_dia") return abrirVentasDia();
+    if (id === "rentabilidad") return abrirRentabilidad();
     var def = INFORMES[id];
     if (!def) return;
     openModal(def.nombre);
