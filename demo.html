@@ -5,6 +5,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{overflow-x:hidden}
 body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}
 img{max-width:100%}
 [hidden]:not([hidden=until-found i]){display:none!important}
@@ -78,9 +79,11 @@ p.lead{color:var(--muted); margin:0 0 18px; font-size:.92rem; line-height:1.5}
 .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
 
 label{display:block; font-size:.78rem; color:var(--muted); margin-bottom:5px; font-weight:600; text-transform:uppercase; letter-spacing:.03em}
-input[type=text],input[type=email],input[type=password],input[type=number],select,textarea{
-  width:100%; padding:11px 12px; border-radius:10px; border:1px solid var(--border);
-  background:var(--surface); color:var(--fg); font-size:.95rem; font-family:inherit;
+input[type=text],input[type=email],input[type=password],input[type=number],input[type=date],select,textarea{
+  /* font-size 16px (1rem): por debajo de eso iOS hace zoom automático al enfocar el campo,
+     y luego cuesta deshacerlo. Nunca bajar de 1rem en inputs. */
+  width:100%; max-width:100%; padding:11px 12px; border-radius:10px; border:1px solid var(--border);
+  background:var(--surface); color:var(--fg); font-size:1rem; font-family:inherit;
 }
 input:focus,select:focus,textarea:focus{border-color:var(--focus)}
 
@@ -132,8 +135,8 @@ nav.tabs{
   display:flex; justify-content:center;
 }
 nav.tabs .inner{width:100%; max-width:528px; display:flex; justify-content:space-around}
-nav.tabs button{background:none;border:none;color:var(--muted);font-size:.72rem;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:4px;padding:4px 10px;cursor:pointer;font-family:inherit}
-nav.tabs button .ic{font-size:1.15rem}
+nav.tabs button{background:none;border:none;color:var(--muted);font-size:.82rem;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:8px 6px;min-height:52px;flex:1;cursor:pointer;font-family:inherit;line-height:1.15;text-align:center}
+nav.tabs button .ic{font-size:1.5rem}
 nav.tabs button.active{color:var(--accent)}
 
 .camera-cta{border:2px dashed var(--border); border-radius:16px; padding:28px 16px; text-align:center; background:var(--surface)}
@@ -156,7 +159,7 @@ nav.tabs button.active{color:var(--accent)}
 .modal-overlay{position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.45);
   display:flex; align-items:flex-end; justify-content:center}
 @media (min-width:560px){ .modal-overlay{ align-items:center } }
-.modal-sheet{background:var(--bg); width:100%; max-width:528px; max-height:88vh; overflow-y:auto;
+.modal-sheet{background:var(--bg); width:100%; max-width:528px; max-height:88vh; overflow-y:auto; overflow-x:hidden;
   border-radius:18px 18px 0 0; padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));
   box-shadow:0 -8px 30px rgba(0,0,0,.25)}
 @media (min-width:560px){ .modal-sheet{ border-radius:18px; max-height:80vh } }
@@ -351,9 +354,10 @@ body{padding-top:28px}
       </div>
 
       <div class="card">
-        <h2>Almacén</h2>
+        <h2>Artículos / Almacén</h2>
         <div class="replist">
           <button class="replink" type="button" data-informe="mov_familia"><span>Movimiento por familia</span><span class="arrow">›</span></button>
+          <button class="replink" type="button" data-informe="mermas"><span>Informe de mermas</span><span class="arrow">›</span></button>
         </div>
       </div>
 
@@ -372,7 +376,7 @@ body{padding-top:28px}
     </section>
 
     <section id="almacenView" class="view">
-      <h1>Almacén e inventario</h1>
+      <h1>Artículos / Almacén</h1>
       <p class="lead">De la A a la Z. Toca un producto para ver su ficha completa con el historial de entradas y salidas.</p>
       <button class="btn primary" id="btnRegularizarInventario" type="button" style="margin-bottom:14px">🔄 Regularizar inventario</button>
       <div class="searchbox">
@@ -389,7 +393,7 @@ body{padding-top:28px}
       <button data-view="compras" class="active" type="button"><span class="ic">▤</span>Compras</button>
       <button data-view="ventas" type="button"><span class="ic">💶</span>Ventas</button>
       <button data-view="info" type="button"><span class="ic">ⓘ</span>Informes</button>
-      <button data-view="almacen" type="button"><span class="ic">📦</span>Almacén</button>
+      <button data-view="almacen" type="button"><span class="ic">📦</span>Artículos/<br>Almacén</button>
     </div>
   </nav>
 
@@ -443,29 +447,33 @@ body{padding-top:28px}
       { id: "i4", nombre: "Aceite de oliva", zona: "Almacén", esperado: 15, unidad: "l", familia: "Aceites y conservas" },
       { id: "i5", nombre: "Cerveza de barril", zona: "Barra", esperado: 2, unidad: "barril", familia: "Bebidas" }
     ],
+    // "precio" en cada movimiento: precio de compra en las entradas, precio de venta en las
+    // salidas. Es lo que permite ver la evolución del precio en la ficha del producto y valorar
+    // las mermas por FIFO.
     movimientos: {
       "Gambas blancas": [
-        { fecha: "2026-10-15", tipo: "entrada", cantidad: 4, origen: "Compra · Distribuciones Hosteleras Granada SL", origenCompraId: "c1" },
-        { fecha: "2026-10-18", tipo: "salida", cantidad: 1.5, origen: "Venta · Ticket Z" },
-        { fecha: "2026-10-22", tipo: "entrada", cantidad: 2, origen: "Compra · Pescados Costa Tropical", origenCompraId: "c2" },
-        { fecha: "2026-10-26", tipo: "salida", cantidad: 1, origen: "Venta · Ticket Z" }
+        { fecha: "2026-10-15", tipo: "entrada", cantidad: 4, precio: 13.10, origen: "Compra · Distribuciones Hosteleras Granada SL", origenCompraId: "c1" },
+        { fecha: "2026-10-18", tipo: "salida", cantidad: 1.5, precio: 24.90, origen: "Venta · Ticket Z" },
+        { fecha: "2026-10-22", tipo: "entrada", cantidad: 2, precio: 14.90, origen: "Compra · Pescados Costa Tropical", origenCompraId: "c2" },
+        { fecha: "2026-10-26", tipo: "salida", cantidad: 1, precio: 24.90, origen: "Venta · Ticket Z" }
       ],
       "Jamón ibérico": [
-        { fecha: "2026-10-10", tipo: "entrada", cantidad: 3, origen: "Compra · Distribuciones Hosteleras Granada SL" },
-        { fecha: "2026-10-19", tipo: "salida", cantidad: 0.8, origen: "Venta · Ticket Z" }
+        { fecha: "2026-10-10", tipo: "entrada", cantidad: 3, precio: 32.00, origen: "Compra · Distribuciones Hosteleras Granada SL" },
+        { fecha: "2026-10-19", tipo: "salida", cantidad: 0.8, precio: 58.00, origen: "Venta · Ticket Z" }
       ],
       "Patatas": [
-        { fecha: "2026-10-15", tipo: "entrada", cantidad: 25, origen: "Compra · Distribuciones Hosteleras Granada SL", origenCompraId: "c1" },
-        { fecha: "2026-10-20", tipo: "salida", cantidad: 9, origen: "Venta · Ticket Z" }
+        { fecha: "2026-10-15", tipo: "entrada", cantidad: 25, precio: 1.10, origen: "Compra · Distribuciones Hosteleras Granada SL", origenCompraId: "c1" },
+        { fecha: "2026-10-20", tipo: "salida", cantidad: 9, precio: 3.50, origen: "Venta · Ticket Z" }
       ],
       "Aceite de oliva": [
-        { fecha: "2026-10-15", tipo: "entrada", cantidad: 10, origen: "Compra · Distribuciones Hosteleras Granada SL", origenCompraId: "c1" }
+        { fecha: "2026-10-15", tipo: "entrada", cantidad: 10, precio: 4.10, origen: "Compra · Distribuciones Hosteleras Granada SL", origenCompraId: "c1" }
       ],
       "Cerveza de barril": [
-        { fecha: "2026-10-15", tipo: "entrada", cantidad: 2, origen: "Compra · Bebidas Alpujarra" },
-        { fecha: "2026-10-27", tipo: "salida", cantidad: 1, origen: "Venta · Ticket Z" }
+        { fecha: "2026-10-15", tipo: "entrada", cantidad: 2, precio: 81.90, origen: "Compra · Bebidas Alpujarra" },
+        { fecha: "2026-10-27", tipo: "salida", cantidad: 1, precio: 2.40, origen: "Venta · Ticket Z" }
       ]
     },
+    regularizaciones: [],
     proveedoresCount: 4,
     productosCount: 29,
     proveedores: [
@@ -476,7 +484,8 @@ body{padding-top:28px}
     ],
     platos: [
       { id: "pl1", nombre: "Hamburguesa Casa" },
-      { id: "pl2", nombre: "Ensaladilla Rusa" }
+      { id: "pl2", nombre: "Ensaladilla Rusa" },
+      { id: "pl3", nombre: "Caña Alhambra" }
     ],
     compras: [
       { id: "c1", numero: "A-2026-0931", fecha: "2026-10-15", total: 612.40, estado: "confirmada", tipo_documento: "albaran", proveedor_id: "p1", proveedores: { nombre: "Distribuciones Hosteleras Granada SL" } },
@@ -502,7 +511,7 @@ body{padding-top:28px}
       v1: [
         { id: "vl3", plato_id: "pl1", nombre: "Hamburguesa Casa", cantidad: 22, precio_unitario: 11.5 },
         { id: "vl4", plato_id: "pl2", nombre: "Ensaladilla Rusa", cantidad: 18, precio_unitario: 6.5 },
-        { id: "vl5", nombre: "Caña Alhambra", cantidad: 160, precio_unitario: 2.4 }
+        { id: "vl5", plato_id: "pl3", nombre: "Caña Alhambra", cantidad: 160, precio_unitario: 2.4 }
       ],
       v2: [
         { id: "vl1", texto_original: "HAMBURGUESA CASA", cantidad: 9, precio_unitario: 11.5 },
@@ -526,6 +535,38 @@ body{padding-top:28px}
   }
   DEMO.inventario.forEach(function(it){ it.esperado = calcularStock(it); });
 
+  // Valora una cantidad de merma (unidades que faltan en una regularización) por el sistema FIFO:
+  // se van consumiendo las capas de entrada más antiguas (las que aún no se habían gastado en
+  // fechaCorte) al precio de compra al que llegaron, hasta cubrir la cantidad perdida.
+  function valorFIFO(item, fechaCorte, cantidadMerma){
+    if (!(cantidadMerma > 0)) return 0;
+    var movs = (DEMO.movimientos[item.nombre] || [])
+      .filter(function(m){ return m.fecha <= fechaCorte; })
+      .slice().sort(function(a,b){ return a.fecha < b.fecha ? -1 : 1; });
+    var capas = [];
+    movs.forEach(function(m){
+      if (m.tipo === "entrada"){
+        capas.push({ cantidad: m.cantidad, precio: m.precio || 0 });
+      } else {
+        var pendiente = m.cantidad;
+        while (pendiente > 0 && capas.length){
+          var c = capas[0];
+          var usado = Math.min(c.cantidad, pendiente);
+          c.cantidad -= usado; pendiente -= usado;
+          if (c.cantidad <= 0) capas.shift();
+        }
+      }
+    });
+    var restante = cantidadMerma, valor = 0;
+    for (var i=0; i<capas.length && restante>0; i++){
+      var c = capas[i];
+      var usado = Math.min(c.cantidad, restante);
+      valor += usado * c.precio;
+      restante -= usado;
+    }
+    return valor;
+  }
+
   // ---------- Catálogo de referencia (muestra de la base de ~1.370 artículos / 80 proveedores que ya tienes en Supabase) ----------
   var CATALOGO_PRODUCTOS = [
     "COCA-COLA", "COCA-COLA ZERO", "COCA-COLA ZERO ZERO", "COCA-COLA LIGHT", "COLA CAO",
@@ -545,7 +586,8 @@ body{padding-top:28px}
   ];
   var CATALOGO_PLATOS = [
     "HAMBURGUESA CASA", "ENSALADILLA RUSA", "GAMBAS AL AJILLO", "CROQUETAS DE JAMON",
-    "PATATAS BRAVAS", "CALAMARES A LA ANDALUZA", "SOLOMILLO AL WHISKY", "TARTA DE QUESO"
+    "PATATAS BRAVAS", "CALAMARES A LA ANDALUZA", "SOLOMILLO AL WHISKY", "TARTA DE QUESO",
+    "CAÑA ALHAMBRA", "COPA DE VINO", "AGUA MINERAL", "REFRESCO"
   ];
   var ALIAS = {
     "coke": "coca-cola", "cocacola": "coca-cola", "coca cola": "coca-cola",
@@ -1467,11 +1509,84 @@ body{padding-top:28px}
     });
   }
 
+  // ---------- INFORME DE MERMAS: cada regularización es un suceso independiente, con su propio
+  // listado buscable (por producto o por fecha) y su propia ficha de detalle — mismo criterio que
+  // compras por proveedor, ventas por día, etc.
+  function abrirInformeMermas(){
+    openModal("Informe de mermas");
+    renderMermasNivelLista();
+  }
+
+  function renderMermasNivelLista(presetDesde, presetHasta, presetFiltro){
+    var hoy = new Date().toISOString().slice(0,10);
+    var hace30 = new Date(Date.now() - 30*86400000).toISOString().slice(0,10);
+    var html =
+      '<div class="reportparams">' +
+        '<div><label>Desde</label><input type="date" id="mmDesde" value="'+(presetDesde||hace30)+'"></div>' +
+        '<div><label>Hasta</label><input type="date" id="mmHasta" value="'+(presetHasta||hoy)+'"></div>' +
+      '</div>' +
+      '<div class="searchbox">' +
+        '<span>Buscar producto</span>' +
+        '<div class="searchbox-input"><span class="ic">🔍</span><input type="text" id="mmBuscar" placeholder="Nombre del producto…" value="'+esc(presetFiltro||"")+'"></div>' +
+      '</div>' +
+      '<div id="mmBody"></div>';
+    $("modalBody").innerHTML = html;
+
+    function pintar(){
+      var d = $("mmDesde").value, h = $("mmHasta").value, t = norm($("mmBuscar").value);
+      var regs = (DEMO.regularizaciones || []).filter(function(r){ return enRango(r.fecha, d, h); });
+      if (t) regs = regs.filter(function(r){ return r.lineas.some(function(l){ return norm(l.nombre).indexOf(t) > -1; }); });
+      regs = regs.slice().sort(function(a,b){ return a.fecha < b.fecha ? 1 : -1; });
+      var body = $("mmBody");
+      if (!regs.length){ body.innerHTML = '<div class="empty">Sin regularizaciones en el periodo.</div>'; return; }
+      var totalValor = regs.reduce(function(s,r){ return s + r.lineas.reduce(function(s2,l){ return s2 + (l.valorFifo||0); }, 0); }, 0);
+      body.innerHTML = regs.map(function(r){
+        var valor = r.lineas.reduce(function(s,l){ return s + (l.valorFifo||0); }, 0);
+        return '<div class="lineitem" data-mm-reg="'+r.id+'" style="cursor:pointer">' +
+          '<div class="row between"><span class="txt">'+fecha(r.fecha)+'</span><span class="meta" style="margin:0">'+eur(valor)+' en mermas</span></div>' +
+          '<div class="meta">'+r.lineas.length+' producto'+(r.lineas.length===1?"":"s")+' regularizado'+(r.lineas.length===1?"":"s")+'</div></div>';
+      }).join("") +
+      '<div class="statline" style="margin-top:4px"><span class="k">Total mermas del periodo</span><span class="v">'+eur(totalValor)+'</span></div>';
+      qsa("[data-mm-reg]", body).forEach(function(el){
+        el.addEventListener("click", function(){ renderMermaDetalle(el.dataset.mmReg, d, h, $("mmBuscar").value); });
+      });
+    }
+    pintar();
+    $("mmDesde").addEventListener("change", pintar);
+    $("mmHasta").addEventListener("change", pintar);
+    $("mmBuscar").addEventListener("input", pintar);
+  }
+
+  function renderMermaDetalle(regId, d, h, filtro){
+    var reg = (DEMO.regularizaciones || []).find(function(r){ return r.id === regId; });
+    if (!reg) return;
+    $("modalTitle").textContent = "Regularización · " + fecha(reg.fecha);
+    var valorTotal = reg.lineas.reduce(function(s,l){ return s + (l.valorFifo||0); }, 0);
+    var html =
+      '<button class="btn ghost sm" id="mmVolver" type="button" style="width:auto; margin-bottom:14px">← Informe de mermas</button>' +
+      '<div class="card tight row between" style="margin-bottom:14px">' +
+        '<span class="meta" style="margin:0">'+fecha(reg.fecha)+'</span>' +
+        '<span class="txt" style="margin:0">'+eur(valorTotal)+' en mermas</span>' +
+      '</div>' +
+      '<h2>Productos regularizados</h2>' +
+      reg.lineas.map(function(l){
+        var esMerma = l.diferencia > 0;
+        var diffLabel = esMerma ? '−'+l.diferencia+' '+esc(l.unidad)+' (merma)' : '+'+Math.abs(l.diferencia)+' '+esc(l.unidad)+' (sobra)';
+        var valorLabel = esMerma && l.valorFifo ? ' · '+eur(l.valorFifo) : '';
+        return '<div class="statline"><span class="k">'+chip("producto", l.itemId, l.nombre)+' · '+l.antes+' → '+l.despues+' '+esc(l.unidad)+'</span>' +
+          '<span class="v '+(esMerma?"up":"down")+'">'+diffLabel+valorLabel+'</span></div>';
+      }).join("");
+    $("modalBody").innerHTML = html;
+    wireElinks($("modalBody"));
+    $("mmVolver").addEventListener("click", function(){ renderMermasNivelLista(d, h, filtro); });
+  }
+
   function abrirInforme(id){
     if (id === "compras_proveedor") return abrirComprasProveedor();
     if (id === "mov_familia") return abrirMovimientoFamilia();
     if (id === "ventas_dia") return abrirVentasDia();
     if (id === "rentabilidad") return abrirRentabilidad();
+    if (id === "mermas") return abrirInformeMermas();
     var def = INFORMES[id];
     if (!def) return;
     openModal(def.nombre);
@@ -1869,9 +1984,14 @@ body{padding-top:28px}
     var box = $("manualBoxVenta");
     if (box.innerHTML){ box.innerHTML = ""; return; }
     manualLineaVentaN = 0;
+    var hoyManual = new Date().toISOString().slice(0,10);
     box.innerHTML =
       '<div class="card stack" id="manualFormVenta">' +
         '<h2 style="margin:0">Venta manual</h2>' +
+        '<div>' +
+          '<label>Fecha</label>' +
+          '<input type="date" id="manualFechaVenta" value="'+hoyManual+'" max="'+hoyManual+'">' +
+        '</div>' +
         '<div>' +
           '<label>Platos vendidos</label>' +
           '<div id="manualLineasVenta" class="stack"></div>' +
@@ -1913,25 +2033,32 @@ body{padding-top:28px}
       }).filter(function(l){ return l.nombre && l.cant>0 && l.precio>=0; });
 
       if (!lineas.length){ toast("Añade al menos un plato con cantidad y precio.", "err"); return; }
+      var fechaVenta = $("manualFechaVenta").value;
+      if (!fechaVenta){ toast("Indica la fecha de la venta.", "err"); return; }
 
       setLoading(btn, true, "Guardando…");
-      lineas.forEach(function(l){
+      // mismo criterio que el resto de la app: todo artículo vendido (plato o bebida) vive en
+      // DEMO.platos, para que su ficha y el ciclo de enlaces funcionen igual sea lo que sea.
+      var lineasGuardadas = lineas.map(function(l){
         var t = norm(l.nombre);
-        if (!DEMO.platos.find(function(p){ return norm(p.nombre)===t; })){
-          DEMO.platos.push({ id: "pl"+Date.now()+Math.random(), nombre: l.nombre });
+        var plato = DEMO.platos.find(function(p){ return norm(p.nombre)===t; });
+        if (!plato){
+          plato = { id: "pl"+Date.now()+Math.random(), nombre: l.nombre };
+          DEMO.platos.push(plato);
         }
+        return { id: "vl-manual-"+Date.now()+Math.random(), plato_id: plato.id, nombre: plato.nombre, cantidad: l.cant, precio_unitario: l.precio };
       });
-      var total = lineas.reduce(function(s,l){ return s + l.cant*l.precio; }, 0);
+      var total = lineasGuardadas.reduce(function(s,l){ return s + l.cantidad*l.precio_unitario; }, 0);
       var nuevaVenta = {
         id: "manual-v-" + Date.now(),
-        numero: "Manual-" + new Date().toLocaleDateString("es-ES"),
-        fecha: new Date().toISOString().slice(0,10),
+        numero: "Manual-" + new Date(fechaVenta).toLocaleDateString("es-ES"),
+        fecha: fechaVenta,
         total: total,
         estado: "confirmada",
         tipo_documento: "manual"
       };
       DEMO.ventas.unshift(nuevaVenta);
-      DEMO.ventaLineas[nuevaVenta.id] = [];
+      DEMO.ventaLineas[nuevaVenta.id] = lineasGuardadas;
 
       wait(null, 250).then(function(){
         toast("Venta manual guardada.", "ok");
@@ -2147,16 +2274,27 @@ body{padding-top:28px}
       setLoading(btn, true, "Guardando…");
       wait(null, 250).then(function(){
         var hoy = new Date().toISOString().slice(0,10);
-        var cambios = 0;
+        // Cada regularización queda como un suceso propio e independiente (su propia fecha,
+        // sus propias líneas), no mezclada con las demás: así cada una tiene su informe de
+        // mermas aparte, igual que cada compra o cada ticket tiene su propia ficha.
+        var reg = { id: "reg"+Date.now(), fecha: hoy, lineas: [] };
         qsa("[data-reg-id]", $("modalBody")).forEach(function(inp){
           var it = DEMO.inventario.find(function(x){ return x.id===inp.dataset.regId; });
           var val = parseFloat(inp.value);
           if (!it || isNaN(val) || val<0 || val===it.esperado) return;
+          var antes = it.esperado;
+          var diferencia = antes - val; // positivo = merma (falta producto), negativo = sobra
+          var valor = diferencia > 0 ? valorFIFO(it, hoy, diferencia) : 0;
+          reg.lineas.push({ itemId: it.id, nombre: it.nombre, unidad: it.unidad, antes: antes, despues: val, diferencia: diferencia, valorFifo: valor });
           it.historial = it.historial || [];
           it.historial.push({ fecha: hoy, cantidad: val });
           it.esperado = val;
-          cambios++;
         });
+        if (reg.lineas.length){
+          DEMO.regularizaciones = DEMO.regularizaciones || [];
+          DEMO.regularizaciones.unshift(reg);
+        }
+        var cambios = reg.lineas.length;
         toast(cambios ? "Inventario regularizado ("+cambios+" producto"+(cambios===1?"":"s")+" actualizado"+(cambios===1?"":"s")+")." : "No había cambios que guardar.", "ok");
         closeModal();
         if (qs("#almacenView.active")) pintarAlmacenLista($("almacenBuscar").value);
@@ -2174,7 +2312,15 @@ body{padding-top:28px}
 
     var movs = (DEMO.movimientos[item.nombre] || []).slice()
       .sort(function(a,b){ return a.fecha < b.fecha ? 1 : -1; });
-    var correcciones = item.historial.slice().reverse();
+    // cada corrección sale de su propia regularización (independiente, con su informe de
+    // mermas aparte); se buscan aquí las que tocan a este producto.
+    var correcciones = (DEMO.regularizaciones || [])
+      .map(function(r){
+        var l = r.lineas.find(function(x){ return x.itemId === item.id; });
+        return l ? { regId: r.id, fecha: r.fecha, linea: l } : null;
+      })
+      .filter(Boolean)
+      .sort(function(a,b){ return a.fecha < b.fecha ? 1 : -1; });
 
     var html =
       '<div class="card tight row between" style="margin-bottom:16px">' +
@@ -2188,7 +2334,8 @@ body{padding-top:28px}
     } else {
       html += movs.map(function(m){
         var origenLabel = m.origenCompraId ? chip("compra", m.origenCompraId, m.origen) : esc(m.origen);
-        return '<div class="statline"><span class="k">'+fecha(m.fecha)+' · '+origenLabel+'</span>' +
+        var precioLabel = m.precio!=null ? ' · '+eur(m.precio)+'/'+esc(item.unidad) : '';
+        return '<div class="statline"><span class="k">'+fecha(m.fecha)+' · '+origenLabel+precioLabel+'</span>' +
           '<span class="v '+(m.tipo==="entrada"?"down":"up")+'">'+(m.tipo==="entrada"?"+":"−")+m.cantidad+' '+esc(item.unidad)+'</span></div>';
       }).join("");
     }
@@ -2197,8 +2344,14 @@ body{padding-top:28px}
     if (!correcciones.length){
       html += '<div class="empty">Sin correcciones todavía.</div>';
     } else {
-      html += correcciones.map(function(h){
-        return '<div class="statline"><span class="k">'+fecha(h.fecha)+'</span><span class="v">'+h.cantidad+' '+esc(item.unidad)+'</span></div>';
+      html += correcciones.map(function(c){
+        var l = c.linea;
+        var esMerma = l.diferencia > 0;
+        var diffLabel = esMerma ? '−'+l.diferencia+' '+esc(item.unidad) : '+'+Math.abs(l.diferencia)+' '+esc(item.unidad);
+        var valorLabel = esMerma && l.valorFifo ? ' · '+eur(l.valorFifo) : '';
+        return '<div class="lineitem" data-ficha-reg="'+c.regId+'" style="cursor:pointer">' +
+          '<div class="row between"><span class="txt">'+fecha(c.fecha)+'</span><span class="v '+(esMerma?"up":"down")+'">'+diffLabel+valorLabel+'</span></div>' +
+          '<div class="meta">'+l.antes+' → '+l.despues+' '+esc(item.unidad)+'</div></div>';
       }).join("");
     }
 
@@ -2206,6 +2359,12 @@ body{padding-top:28px}
 
     $("modalBody").innerHTML = html;
     wireElinks($("modalBody"));
+    qsa("[data-ficha-reg]", $("modalBody")).forEach(function(el){
+      el.addEventListener("click", function(){
+        openModal("Informe de mermas");
+        renderMermaDetalle(el.dataset.fichaReg, null, null, "");
+      });
+    });
   }
 
   // ---------- FICHA DE PROVEEDOR: historial de compras, por fecha ----------
