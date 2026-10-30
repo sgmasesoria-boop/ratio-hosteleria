@@ -803,7 +803,10 @@ body{padding-top:28px}
         return wait({ data: DEMO.proveedores, error: null });
       case "productos":
         if (q.count) return wait({ data: null, error: null, count: DEMO.productosCount });
-        if (q.single) return wait({ data: { unidad_base: "kg" }, error: null });
+        if (q.single){
+          var prodS = DEMO.inventario.find(function(p){ return p.id === q.filters.id; });
+          return wait({ data: prodS ? { unidad_base: prodS.unidad, factor_compra: prodS.factor_compra || 1 } : null, error: null });
+        }
         return wait({ data: [], error: null });
       default:
         return wait({ data: [], error: null });
@@ -905,7 +908,16 @@ body{padding-top:28px}
     rpc: function(name, args){
       args = args || {};
       if (name === "inventario_sugerido") return wait({ data: DEMO.inventario, error: null });
-      if (name === "sugerir_productos") return wait({ data: [], error: null });
+      if (name === "sugerir_productos"){
+        var sugs = sugerir(args.p_texto, DEMO.inventario.map(function(p){ return p.nombre; }), []);
+        var porNombreInv = {};
+        DEMO.inventario.forEach(function(p){ porNombreInv[norm(p.nombre)] = p; });
+        var filas = sugs.map(function(s){
+          var p = porNombreInv[norm(s.nombre)];
+          return p ? { producto_id: p.id, nombre: p.nombre, similitud: s.sim } : null;
+        }).filter(Boolean);
+        return wait({ data: filas, error: null });
+      }
       if (name === "resolver_proveedor"){
         var c = DEMO.compras.find(function(c){ return c.id === args.p_compra; });
         if (c){
@@ -934,12 +946,20 @@ body{padding-top:28px}
           prodR = { id: "i"+Date.now()+Math.random(), nombre: args.p_nombre_nuevo || "Producto", zona: "Sin asignar", esperado: 0, unidad: args.p_unidad_base || "ud", familia: "Sin clasificar" };
           DEMO.inventario.push(prodR);
         }
+        // "Equivale a" (p_factor_a_base): cuántas unidades base trae cada unidad de compra —
+        // p.ej. una caja de Coca-Cola = 24 ud, un barril = 30 l. Se guarda en la propia línea
+        // (para convertir el stock al confirmar la compra) y además se recuerda en la ficha del
+        // producto como valor por defecto, para no tener que volver a teclearlo la próxima vez
+        // que llegue el mismo producto.
+        var factorLinea = args.p_factor_a_base > 0 ? args.p_factor_a_base : 1;
+        prodR.factor_compra = factorLinea;
         Object.keys(DEMO.compraLineas).forEach(function(cid){
           DEMO.compraLineas[cid].forEach(function(l){
             if (l.id === args.p_linea){
               l.producto_id = prodR.id; l.nombre = prodR.nombre;
               if (args.p_cantidad > 0) l.cantidad = args.p_cantidad;
               if (args.p_precio_unitario >= 0) l.precio_unitario = args.p_precio_unitario;
+              l.factor_a_base = factorLinea;
             }
           });
         });
@@ -947,7 +967,25 @@ body{padding-top:28px}
       }
       if (name === "confirmar_compra"){
         var cc = DEMO.compras.find(function(c){ return c.id === args.p_compra; });
-        if (cc) cc.estado = "confirmada";
+        if (cc){
+          cc.estado = "confirmada";
+          var provNombre = cc.proveedores ? cc.proveedores.nombre : "Proveedor";
+          (DEMO.compraLineas[cc.id] || []).forEach(function(l){
+            var prodCC = l.producto_id
+              ? DEMO.inventario.find(function(p){ return p.id === l.producto_id; })
+              : DEMO.inventario.find(function(p){ return norm(p.nombre) === norm(l.nombre); });
+            if (!prodCC || !(l.cantidad > 0)) return;
+            var factorCC = l.factor_a_base > 0 ? l.factor_a_base : 1;
+            var cantidadBase = l.cantidad * factorCC;
+            var precioBase = factorCC !== 1 ? (l.precio_unitario || 0) / factorCC : (l.precio_unitario || 0);
+            DEMO.movimientos[prodCC.nombre] = DEMO.movimientos[prodCC.nombre] || [];
+            DEMO.movimientos[prodCC.nombre].push({
+              fecha: cc.fecha, tipo: "entrada", cantidad: cantidadBase, precio: precioBase,
+              origen: "Compra · " + provNombre, origenCompraId: cc.id
+            });
+            prodCC.esperado = calcularStock(prodCC);
+          });
+        }
         return wait({ data: null, error: null });
       }
       if (name === "resolver_linea_venta"){
@@ -971,7 +1009,42 @@ body{padding-top:28px}
       }
       if (name === "confirmar_venta"){
         var cv = DEMO.ventas.find(function(v){ return v.id === args.p_venta; });
-        if (cv) cv.estado = "confirmada";
+        if (cv){
+          cv.estado = "confirmada";
+          var origenVenta = "Venta · " + (cv.numero || "Ticket");
+          (DEMO.ventaLineas[cv.id] || []).forEach(function(l){
+            if (!(l.cantidad > 0)) return;
+            var escandalloVenta = l.plato_id ? DEMO.escandallos[l.plato_id] : null;
+            if (escandalloVenta && escandalloVenta.length){
+              // Plato con receta: cada venta consume sus ingredientes (con la merma aplicada),
+              // no el "plato" en sí (los platos no están en el almacén).
+              escandalloVenta.forEach(function(ing){
+                var prodIng = DEMO.inventario.find(function(p){ return p.id === ing.producto_id; });
+                if (!prodIng) return;
+                var cantidadConsumida = cantidadBruta(ing) * l.cantidad;
+                if (!(cantidadConsumida > 0)) return;
+                DEMO.movimientos[prodIng.nombre] = DEMO.movimientos[prodIng.nombre] || [];
+                DEMO.movimientos[prodIng.nombre].push({
+                  fecha: cv.fecha, tipo: "salida", cantidad: cantidadConsumida,
+                  origen: origenVenta + " · " + (l.nombre || ""), origenVentaId: cv.id
+                });
+                prodIng.esperado = calcularStock(prodIng);
+              });
+            } else {
+              // Sin escandallo: se vende el propio producto del almacén (p.ej. una lata de refresco).
+              var prodVenta = l.producto_id
+                ? DEMO.inventario.find(function(p){ return p.id === l.producto_id; })
+                : DEMO.inventario.find(function(p){ return norm(p.nombre) === norm(l.nombre); });
+              if (!prodVenta) return;
+              DEMO.movimientos[prodVenta.nombre] = DEMO.movimientos[prodVenta.nombre] || [];
+              DEMO.movimientos[prodVenta.nombre].push({
+                fecha: cv.fecha, tipo: "salida", cantidad: l.cantidad, precio: l.precio_unitario,
+                origen: origenVenta, origenVentaId: cv.id
+              });
+              prodVenta.esperado = calcularStock(prodVenta);
+            }
+          });
+        }
         return wait({ data: null, error: null });
       }
       return wait({ data: null, error: null });
@@ -2365,8 +2438,9 @@ body{padding-top:28px}
       '<div data-prod-detalle hidden>' +
         '<div class="grid2" style="margin-bottom:8px">' +
           '<div><label>Unidad base</label><select data-unidad-base><option value="ud">unidad</option><option value="kg">kg</option><option value="g">g</option><option value="l">litro</option><option value="ml">ml</option></select></div>' +
-          '<div><label>Equivale a</label><input type="number" step="any" min="0.0001" data-factor value="1"></div>' +
+          '<div><label>1 '+esc(l.unidad_compra)+' comprada = cuántas unidades base</label><input type="number" step="any" min="0.0001" data-factor value="1"></div>' +
         '</div>' +
+        '<div class="meta" style="margin:-4px 0 8px">Ej.: si compras cajas de 24, pon 24 aquí y "unidad" como unidad base — así el stock queda en unidades sueltas para la venta.</div>' +
         '<input type="text" data-prod-nuevo placeholder="Nombre del producto" style="margin-bottom:8px">' +
       '</div>' +
       '<button class="btn primary sm" data-prod-guardar type="button" style="margin-top:4px">Guardar</button>' +
@@ -2401,7 +2475,10 @@ body{padding-top:28px}
             } else {
               elegido = b.dataset.pick; detalle.hidden = false; nuevoInput.hidden = true;
               sb.from("productos").select("unidad_base").eq("id", elegido).single().then(function(pr){
-                if (pr.data) unidadSelect.value = pr.data.unidad_base;
+                if (pr.data){
+                  unidadSelect.value = pr.data.unidad_base;
+                  factorInput.value = pr.data.factor_compra || 1;
+                }
               });
             }
           });
