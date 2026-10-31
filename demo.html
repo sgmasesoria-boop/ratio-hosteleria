@@ -844,7 +844,7 @@ body{padding-top:28px}
     }).then(function(res){ return (res && res.data && res.data.text) || ""; });
   }
 
-  var RUIDO_DOCUMENTO = /total|subtotal|\biva\b|\bcif\b|\bnif\b|gracias|\bticket\b|factura|albar[aá]n|\bfecha\b|\bhora\b|\bcaja\b|cambio|efectivo|tarjeta|direcci[oó]n|tel[eé]fono|www\.|https?:|n[uú]mero|cliente|atenci[oó]n|forma de pago|c\.?p\.?\s*\d/i;
+  var RUIDO_DOCUMENTO = /total|subtotal|\biva\b|\bcif\b|\bnif\b|gracias|\bticket\b|factura|albar[aá]n|\bfecha\b|\bhora\b|\bcaja\b|cambio|efectivo|tarjeta|direcci[oó]n|tel[eé]fono|www\.|https?:|n[uú]mero|cliente|atenci[oó]n|forma de pago|c\.?p\.?\s*\d|reposici[oó]n|transcurrid|devoluci[oó]n|discrepancia|jurisdicci[oó]n|pol[ií]gono|frigor[ií]fico|distribuci[oó]n(?:es)?|\bfax\b|\breg\.?\s*\d|\bagente\b|\bruta\b|\bhoja\b|\brepartidor\b|\bvendedor\b|\bcobrador\b|lugar de entrega|raz[oó]n social|observaciones|estimado cliente|mercanc[ií]a caducada|registro mercantil|reg\.?\s*mercantil/i;
 
   // Intenta separar el texto reconocido en líneas de "nombre + cantidad + precio". No hay un
   // formato único de ticket, así que se prueban los dos órdenes más habituales y se descartan
@@ -865,6 +865,44 @@ body{padding-top:28px}
     var reNombreCantPrecio = /^(.+?)\s+(\d+(?:[.,]\d+)?)\s*(?:ud\.?|uds\.?|x)?\s*[x·]?\s*(\d+(?:[.,]\d+)?)\s*€?\s*$/i;
     var reCantNombrePrecio = /^(\d+(?:[.,]\d+)?)\s*(?:ud\.?|uds\.?|x)?\s+(.+?)\s+(\d+(?:[.,]\d+)?)\s*€?\s*$/i;
     var reLetras = /[a-zA-ZÀ-ÿ]{3,}/;
+    var reTokenConLetras = /[a-zA-ZÀ-ÿ]{2,}/;
+    var reNumeroSuelto = /^(\d+(?:[.,]\d+)?)€?$/;
+
+    // Fallback para albaranes/facturas "de verdad", con más de dos números por línea (cajas,
+    // unidades, precio tarifa, descuento, importe...) o con el precio en blanco en el papel
+    // (p.ej. entregas "no facturadas"/reposición). En vez de descartar la línea entera —que es
+    // lo que hacía que desaparecieran artículos reales—, se intenta sacar al menos el nombre y
+    // una cantidad, dejando el precio vacío cuando no está claro cuál de los números es: así el
+    // artículo aparece igualmente en la revisión, para completarlo a mano en vez de perderlo.
+    function lineaFlexible(linea){
+      var tokens = linea.split(/\s+/).filter(Boolean);
+      var primerConLetras = -1;
+      for (var i = 0; i < tokens.length; i++){
+        if (reTokenConLetras.test(tokens[i])){ primerConLetras = i; break; }
+      }
+      if (primerConLetras < 0) return null;
+      // El nombre dura hasta el primer número "limpio" (sin letras pegadas, p.ej. "2.204" pero
+      // no "2.2KGX2", que sigue siendo parte del nombre/formato de envase). Si después de los
+      // números hay basura residual del OCR (letras sueltas mal leídas), se ignora: ya se cuenta
+      // con los números limpios encontrados antes de esa basura.
+      var finNombre = tokens.length;
+      for (var j = primerConLetras + 1; j < tokens.length; j++){
+        if (reNumeroSuelto.test(tokens[j])){ finNombre = j; break; }
+      }
+      if (finNombre <= primerConLetras) return null;
+      var nombre = tokens.slice(primerConLetras, finNombre).join(" ");
+      var numeros = [];
+      tokens.slice(finNombre).forEach(function(t){
+        var mt = t.match(reNumeroSuelto);
+        if (mt) numeros.push(parseFloat(mt[1].replace(",", ".")));
+      });
+      if (!numeros.length) return null;
+      // Si hay exactamente dos números detrás del nombre, se asume "cantidad precio" (igual que
+      // antes). Con uno, tres o más (varias columnas: cajas, peso, tarifa, dto, importe...) solo
+      // se toma el primero como cantidad y el precio se deja en blanco — adivinarlo entre varias
+      // columnas podría meter un coste equivocado sin que se note.
+      return { nombre: nombre, cantidad: numeros[0], precio: numeros.length === 2 ? numeros[1] : "" };
+    }
 
     var lineas = [];
     lineasTexto.forEach(function(linea){
@@ -872,25 +910,41 @@ body{padding-top:28px}
       if (RUIDO_DOCUMENTO.test(linea)) return;
       if (!reLetras.test(linea)) return;
 
-      var nombre, cantidad, precio;
+      // Valida un candidato (nombre + cantidad + precio) completo: cantidad/precio dentro de
+      // rango plausible, y el nombre con pinta real de artículo (mayoría de letras, no ruido ni
+      // números de más que el regex haya arrastrado por error). Si cualquiera de los tres
+      // patrones de abajo produce un candidato que no pasa esta validación, se prueba el
+      // siguiente en vez de descartar la línea entera — así un fallo de un patrón (p.ej. un
+      // código de artículo confundido con la cantidad) no tapa un acierto de otro.
+      function validarCandidato(nombreCrudo, cantidad, precio){
+        if (!(cantidad > 0 && cantidad <= 1000)) return null;
+        if (!(precio === "" || (precio >= 0 && precio <= 10000))) return null;
+        var nombre = (nombreCrudo || "").replace(/[·.\-–]+$/,"").trim();
+        if (nombre.length < 3) return null;
+        var numLetras = (nombre.match(/[a-zA-ZÀ-ÿ]/g) || []).length;
+        if (numLetras / nombre.length < 0.5) return null;
+        return { nombre: nombre.toUpperCase(), cantidad: cantidad, precio_unitario: precio };
+      }
+
+      var candidato = null;
       var m = linea.match(reNombreCantPrecio);
       if (m && reLetras.test(m[1])){
-        nombre = m[1]; cantidad = parseFloat(m[2].replace(",", ".")); precio = parseFloat(m[3].replace(",", "."));
-      } else {
+        candidato = validarCandidato(m[1], parseFloat(m[2].replace(",", ".")), parseFloat(m[3].replace(",", ".")));
+      }
+      if (!candidato){
         var m2 = linea.match(reCantNombrePrecio);
         if (m2 && reLetras.test(m2[2])){
-          cantidad = parseFloat(m2[1].replace(",", ".")); nombre = m2[2]; precio = parseFloat(m2[3].replace(",", "."));
+          candidato = validarCandidato(m2[2], parseFloat(m2[1].replace(",", ".")), parseFloat(m2[3].replace(",", ".")));
         }
       }
-      if (nombre && cantidad > 0 && cantidad <= 1000 && precio >= 0 && precio <= 10000){
-        nombre = nombre.replace(/[·.\-–]+$/,"").trim();
-        // Filtro de plausibilidad: si la mayoría de los caracteres del "nombre" no son letras,
-        // es más probable que sea ruido del fondo de la foto que un artículo real.
-        var numLetras = (nombre.match(/[a-zA-ZÀ-ÿ]/g) || []).length;
-        if (nombre.length >= 3 && numLetras / nombre.length >= 0.5) {
-          lineas.push({ nombre: nombre.toUpperCase(), cantidad: cantidad, precio_unitario: precio });
-        }
+      // Si los patrones estrictos no dieron una línea con pinta real (p.ej. porque arrastraron
+      // un código de artículo o varias columnas de más como si fueran "cantidad"/"precio"), se
+      // prueba el modo flexible antes de descartar la línea del todo.
+      if (!candidato){
+        var flex = lineaFlexible(linea);
+        if (flex) candidato = validarCandidato(flex.nombre, flex.cantidad, flex.precio);
       }
+      if (candidato) lineas.push(candidato);
     });
 
     return { fecha: fechaDoc, lineas: lineas, textoCrudo: texto || "" };
@@ -986,6 +1040,15 @@ body{padding-top:28px}
             prodCC.esperado = calcularStock(prodCC);
           });
         }
+        return wait({ data: null, error: null });
+      }
+      if (name === "descartar_linea"){
+        // La línea no era un artículo real (ruido de la foto, cabecera, dirección…): se quita
+        // sin más — no hace falta darla de alta como producto/plato ni enlazarla a nada.
+        var mapaLineas = args.p_tipo === "venta" ? DEMO.ventaLineas : DEMO.compraLineas;
+        Object.keys(mapaLineas).forEach(function(cid){
+          mapaLineas[cid] = mapaLineas[cid].filter(function(l){ return l.id !== args.p_linea; });
+        });
         return wait({ data: null, error: null });
       }
       if (name === "resolver_linea_venta"){
@@ -2064,18 +2127,38 @@ body{padding-top:28px}
     canvas.toBlob(function(blob){ cb(blob); }, "image/jpeg", 0.92);
   }
 
+  // Gira la imagen (archivo o blob) 90°/180°/270° redibujándola en un canvas — se usa cuando el
+  // documento está fotografiado de lado (algunas facturas/albaranes de reparto imprimen la
+  // tabla girada de fábrica para aprovechar el papel). Devuelve un blob nuevo ya girado.
+  function rotarImagenBlob(fuenteImg, grados, cb){
+    var w = fuenteImg.naturalWidth, h = fuenteImg.naturalHeight;
+    var canvas = document.createElement("canvas");
+    var vertical = (((grados % 360) + 360) % 360) % 180 !== 0;
+    canvas.width = vertical ? h : w;
+    canvas.height = vertical ? w : h;
+    var ctx = canvas.getContext("2d");
+    ctx.translate(canvas.width/2, canvas.height/2);
+    ctx.rotate(grados * Math.PI / 180);
+    ctx.drawImage(fuenteImg, -w/2, -h/2);
+    canvas.toBlob(function(blob){ cb(blob); }, "image/jpeg", 0.95);
+  }
+
   function mostrarRecorte(file, onListo){
     var url = URL.createObjectURL(file);
+    var archivoActual = file;
     openModal("Encuadra el documento");
     var body = $("modalBody");
     body.innerHTML =
-      '<div class="lead" style="margin:0 0 10px">Ajusta el recuadro para dejar dentro solo el albarán/ticket, sin el fondo — así se lee mejor.</div>' +
+      '<div class="lead" style="margin:0 0 10px">Ajusta el recuadro para dejar dentro solo el albarán/ticket, sin el fondo — así se lee mejor. Si la foto salió de lado, gírala primero.</div>' +
       '<div class="crop-stage" id="cropStage"><img class="crop-img" id="cropImg" src="'+url+'" alt="Foto a recortar">' +
         '<div class="crop-box" id="cropBox">' +
           '<div class="crop-handle" data-h="nw"></div><div class="crop-handle" data-h="ne"></div>' +
           '<div class="crop-handle" data-h="sw"></div><div class="crop-handle" data-h="se"></div>' +
         '</div></div>' +
-      '<div class="row" style="gap:8px; margin-top:12px">' +
+      '<div class="row" style="gap:8px; margin-top:10px">' +
+        '<button class="btn sm" type="button" id="btnGirar" style="flex:1">↻ Girar 90°</button>' +
+      '</div>' +
+      '<div class="row" style="gap:8px; margin-top:8px">' +
         '<button class="btn" type="button" id="btnRecorteCompleta" style="flex:1">Usar foto completa</button>' +
         '<button class="btn primary" type="button" id="btnRecorteOk" style="flex:1">Usar este recuadro</button>' +
       '</div>';
@@ -2127,16 +2210,30 @@ body{padding-top:28px}
       document.removeEventListener("pointerup", onUp);
       URL.revokeObjectURL(url);
     }
+    $("btnGirar").addEventListener("click", function(){
+      var btnG = this;
+      btnG.disabled = true;
+      rotarImagenBlob(img, 90, function(blob){
+        btnG.disabled = false;
+        if (!blob) return;
+        archivoActual = blob;
+        var nuevaUrl = URL.createObjectURL(blob);
+        URL.revokeObjectURL(url);
+        url = nuevaUrl;
+        img.addEventListener("load", initBox, { once: true });
+        img.src = url;
+      });
+    });
     $("btnRecorteCompleta").addEventListener("click", function(){
       limpiar();
-      procesarBlobDesdeImagen(img, 0, 0, img.naturalWidth, img.naturalHeight, function(blob){ onListo(blob || file); });
+      procesarBlobDesdeImagen(img, 0, 0, img.naturalWidth, img.naturalHeight, function(blob){ onListo(blob || archivoActual); });
     });
     $("btnRecorteOk").addEventListener("click", function(){
       var scaleX = img.naturalWidth / img.clientWidth, scaleY = img.naturalHeight / img.clientHeight;
       var bx = parseFloat(box.style.left), by = parseFloat(box.style.top);
       var bw = parseFloat(box.style.width), bh = parseFloat(box.style.height);
       limpiar();
-      procesarBlobDesdeImagen(img, bx*scaleX, by*scaleY, bw*scaleX, bh*scaleY, function(blob){ onListo(blob || file); });
+      procesarBlobDesdeImagen(img, bx*scaleX, by*scaleY, bw*scaleX, bh*scaleY, function(blob){ onListo(blob || archivoActual); });
     });
   }
 
@@ -2443,7 +2540,10 @@ body{padding-top:28px}
         '<div class="meta" style="margin:-4px 0 8px">Ej.: si compras cajas de 24, pon 24 aquí y "unidad" como unidad base — así el stock queda en unidades sueltas para la venta.</div>' +
         '<input type="text" data-prod-nuevo placeholder="Nombre del producto" style="margin-bottom:8px">' +
       '</div>' +
-      '<button class="btn primary sm" data-prod-guardar type="button" style="margin-top:4px">Guardar</button>' +
+      '<div class="row" style="gap:6px; margin-top:4px">' +
+        '<button class="btn primary sm" data-prod-guardar type="button" style="flex:1">Guardar</button>' +
+        '<button class="btn sm" data-prod-descartar type="button">No es un artículo</button>' +
+      '</div>' +
       '</div>';
   }
 
@@ -2501,6 +2601,13 @@ body{padding-top:28px}
             toast("Producto guardado.", "ok");
             onDone();
           });
+      });
+
+      qs("[data-prod-descartar]", form).addEventListener("click", function(){
+        sb.rpc("descartar_linea", { p_linea: lineaId, p_tipo: "compra" }).then(function(){
+          toast("Línea descartada.", "ok");
+          onDone();
+        });
       });
     });
   }
@@ -2658,7 +2765,10 @@ body{padding-top:28px}
         '<div style="flex:1"><label style="font-size:.75rem">Precio/ud</label><input type="number" step="any" min="0" data-vl-precio value="'+l.precio_unitario+'"></div>' +
       '</div>' +
       '<input type="text" data-vl-input placeholder="Plato o artículo" value="'+esc(l.texto_original)+'" style="margin-bottom:8px">' +
-      '<button class="btn primary sm" data-vl-guardar type="button">Guardar</button>' +
+      '<div class="row" style="gap:6px">' +
+        '<button class="btn primary sm" data-vl-guardar type="button" style="flex:1">Guardar</button>' +
+        '<button class="btn sm" data-vl-descartar type="button">No es un plato</button>' +
+      '</div>' +
       '</div>';
   }
 
@@ -2681,6 +2791,13 @@ body{padding-top:28px}
         sb.rpc("resolver_linea_venta", { p_linea: lineaId, p_nombre: nombre, p_cantidad: cant, p_precio_unitario: precio }).then(function(r){
           if (r.error){ toast(r.error.message, "err"); setLoading(btn,false,null,"Guardar"); return; }
           toast("Plato guardado.", "ok");
+          onDone();
+        });
+      });
+
+      qs("[data-vl-descartar]", form).addEventListener("click", function(){
+        sb.rpc("descartar_linea", { p_linea: lineaId, p_tipo: "venta" }).then(function(){
+          toast("Línea descartada.", "ok");
           onDone();
         });
       });
