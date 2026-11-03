@@ -542,6 +542,17 @@ body{padding-top:28px}
       </div>
     </section>
 
+    <section id="fiscalView" class="view">
+      <h1>Fiscalidad</h1>
+      <p class="lead">Resumen orientativo por trimestre natural — no sustituye a tu asesoría/gestoría, pero te da un primer vistazo antes de presentar el Modelo 303.</p>
+      <div class="row between" style="align-items:center; margin-bottom:14px">
+        <button class="iconbtn" id="fiscalPrev" type="button" title="Trimestre anterior">‹</button>
+        <h2 id="fiscalEtiqueta" style="margin:0">T4 2026</h2>
+        <button class="iconbtn" id="fiscalNext" type="button" title="Trimestre siguiente">›</button>
+      </div>
+      <div id="fiscalResumen"><div class="empty"><span class="spin"></span></div></div>
+    </section>
+
   </main>
 
   <nav class="tabs" id="tabs" hidden>
@@ -551,6 +562,7 @@ body{padding-top:28px}
       <button data-view="ventas" type="button"><span class="ic">💶</span>Ventas</button>
       <button data-view="info" type="button"><span class="ic">ⓘ</span>Informes</button>
       <button data-view="almacen" type="button"><span class="ic">📦</span>Artículos/<br>Almacén</button>
+      <button data-view="fiscal" type="button"><span class="ic">📊</span>Fiscalidad</button>
     </div>
   </nav>
 
@@ -1510,6 +1522,7 @@ body{padding-top:28px}
     if (view==="info") cargarInfo();
     if (view==="almacen") cargarAlmacen();
     if (view==="tpv") cargarTPV();
+    if (view==="fiscal") cargarFiscalidad();
   }
 
   // ---------- TPV: venta rápida por familias, cobro y descuento de stock al vuelo ----------
@@ -1988,6 +2001,112 @@ body{padding-top:28px}
       var ta = parseFloat($("cobroTarjetaInput").value) || 0;
       cerrarYCobrar("mixto", { efectivo: ef, tarjeta: ta });
     });
+  }
+
+  // =====================================================================
+  // FISCALIDAD: resumen por trimestre natural — IVA repercutido (de las
+  // ventas) siempre separado de la vista de ingresos/gastos, tal y como
+  // se declara en el Modelo 303 (trimestral) y luego en la Renta/Sociedades.
+  // =====================================================================
+  var fiscalAnio = null, fiscalTrimestre = null;
+
+  function trimestreActual(){
+    var d = new Date();
+    return { anio: d.getFullYear(), trimestre: Math.floor(d.getMonth() / 3) + 1 };
+  }
+  function trimestreRango(anio, t){
+    var meses = { 1: ["01","03","31"], 2: ["04","06","30"], 3: ["07","09","30"], 4: ["10","12","31"] };
+    var m = meses[t];
+    return { desde: anio + "-" + m[0] + "-01", hasta: anio + "-" + m[1] + "-" + m[2] };
+  }
+
+  // El IVA repercutido de una venta se toma del desglose ya calculado al cobrar en el TPV
+  // (el caso normal); para ventas sin ese detalle (tickets Z u otros documentos importados,
+  // sin líneas con tipo de IVA propio) se asume el 10% general de hostelería sobre el total,
+  // que es la norma para el consumo en el local (ver nota de IVA en el TPV).
+  function desgloseIVAVenta(v){
+    if (v.desgloseIVA && v.desgloseIVA.length) return v.desgloseIVA;
+    var lineas = DEMO.ventaLineas[v.id] || [];
+    if (!lineas.length){
+      var base = v.total / 1.10;
+      return [{ tipo: 10, base: base, cuota: v.total - base, total: v.total }];
+    }
+    return tpvDesgloseIVA(lineas.map(function(l){
+      return { precio: l.precio_unitario, cantidad: l.cantidad, iva: l.iva != null ? l.iva : 10 };
+    }));
+  }
+
+  function cargarFiscalidad(){
+    if (fiscalAnio == null){
+      var t = trimestreActual();
+      fiscalAnio = t.anio; fiscalTrimestre = t.trimestre;
+    }
+    pintarFiscalidad();
+    if (!$("fiscalPrev").dataset.wired){
+      $("fiscalPrev").dataset.wired = "1";
+      $("fiscalPrev").addEventListener("click", function(){ moverTrimestre(-1); });
+      $("fiscalNext").addEventListener("click", function(){ moverTrimestre(1); });
+    }
+  }
+  function moverTrimestre(delta){
+    fiscalTrimestre += delta;
+    if (fiscalTrimestre < 1){ fiscalTrimestre = 4; fiscalAnio--; }
+    if (fiscalTrimestre > 4){ fiscalTrimestre = 1; fiscalAnio++; }
+    pintarFiscalidad();
+  }
+
+  function pintarFiscalidad(){
+    $("fiscalEtiqueta").textContent = "T" + fiscalTrimestre + " " + fiscalAnio;
+    var r = trimestreRango(fiscalAnio, fiscalTrimestre);
+
+    var ventasT = DEMO.ventas.filter(function(v){ return v.estado === "confirmada" && enRango(v.fecha, r.desde, r.hasta); });
+    var comprasT = DEMO.compras.filter(function(c){ return c.estado === "confirmada" && enRango(c.fecha, r.desde, r.hasta); });
+
+    var tramos = {};
+    var ingresos = 0;
+    ventasT.forEach(function(v){
+      // Los ingresos se calculan SIEMPRE a partir del mismo desglose de IVA que se muestra
+      // debajo (base + cuota de cada tramo), nunca del campo "total" suelto de la venta —
+      // así los dos bloques de esta pantalla cuadran entre sí por construcción.
+      desgloseIVAVenta(v).forEach(function(t){
+        if (!tramos[t.tipo]) tramos[t.tipo] = { tipo: t.tipo, base: 0, cuota: 0 };
+        tramos[t.tipo].base += t.base;
+        tramos[t.tipo].cuota += t.cuota;
+        ingresos += t.base + t.cuota;
+      });
+    });
+    var ivaRepercutido = Object.keys(tramos).reduce(function(s, k){ return s + tramos[k].cuota; }, 0);
+    var gastos = comprasT.reduce(function(s, c){ return s + c.total; }, 0);
+
+    var tramosHtml = Object.keys(tramos).sort().map(function(k){
+      var t = tramos[k];
+      return statline("Base " + t.tipo + "% → " + eur(t.base), eur(t.cuota));
+    }).join("");
+
+    $("fiscalResumen").innerHTML =
+      '<div class="card stack">' +
+        '<h2 style="margin:0">IVA repercutido (tus ventas)</h2>' +
+        (tramosHtml || '<div class="empty">Sin ventas confirmadas en este trimestre.</div>') +
+        '<div class="statline" style="border-top:1px solid var(--border); padding-top:8px; margin-top:4px">' +
+          '<span class="k" style="font-weight:800">Total a ingresar (IVA)</span>' +
+          '<span class="v" style="font-weight:800">' + eur(ivaRepercutido) + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="card stack">' +
+        '<h2 style="margin:0">Ingresos y gastos del trimestre</h2>' +
+        statline("Ingresos (ventas confirmadas)", eur(ingresos)) +
+        statline("Gastos (compras confirmadas)", eur(gastos)) +
+        '<div class="statline" style="border-top:1px solid var(--border); padding-top:8px; margin-top:4px">' +
+          '<span class="k" style="font-weight:800">Resultado</span>' +
+          '<span class="v' + (ingresos - gastos >= 0 ? " down" : " up") + '" style="font-weight:800">' + eur(ingresos - gastos) + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="alertbar">' +
+        'El IVA repercutido (arriba) y el resultado de ingresos/gastos (abajo) son cifras distintas a propósito: ' +
+        'no mezcles la cuota de IVA que hay que ingresar con tu margen del trimestre. ' +
+        'Todavía no calculamos el <b>IVA soportado</b> (el de tus compras) porque las compras no llevan un tipo de IVA por línea — ' +
+        'lo añadimos en cuanto quieras llevar aquí el Modelo 303 completo.' +
+      '</div>';
   }
 
   // ---------- INFORMES: catálogo de informes con parámetros y resultado ----------
