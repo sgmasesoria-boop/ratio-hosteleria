@@ -280,9 +280,11 @@ body{padding-top:28px}
 .salon-mesa.editando:active{cursor:grabbing}
 .salon-accesorio{position:absolute; transform:translate(-50%,-50%); width:34px; height:34px; display:flex; align-items:center;
   justify-content:center; font-size:1.1rem; color:var(--muted); background:var(--surface); border:1px dashed var(--border);
-  border-radius:8px; cursor:default; user-select:none}
+  border-radius:8px; cursor:default; user-select:none; flex-direction:column; gap:1px}
 .salon-accesorio.editando{cursor:grab}
 .salon-accesorio.editando:active{cursor:grabbing}
+.salon-accesorio.barra{width:120px; height:30px; border-radius:7px; font-size:.95rem; flex-direction:row; gap:6px}
+.salon-accesorio .sub{font-size:.52rem; font-weight:700; letter-spacing:.03em}
 .salon-canvas.editando .salon-mesa, .salon-canvas.editando .salon-accesorio{box-shadow:0 0 0 2px var(--accent)}
 .salon-paleta{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
 .salon-paleta .btn{flex:1; min-width:120px}
@@ -511,7 +513,7 @@ body{padding-top:28px}
         <div id="salonCanvas" class="salon-canvas"></div>
         <div id="salonPaleta" class="salon-paleta" hidden>
           <button class="btn" id="btnAnadirMesa" type="button">+ Mesa</button>
-          <button class="btn" id="btnAnadirPuerta" type="button">+ Puerta</button>
+          <button class="btn" id="btnAnadirAccesorio" type="button">+ Accesorio</button>
           <button class="btn primary" id="btnSalonHecho" type="button">✓ Hecho</button>
         </div>
         <button class="tpv-tile" id="tpvBarraBtn" type="button" style="width:100%; margin-top:14px; text-align:left; display:flex; align-items:center; justify-content:space-between">
@@ -760,7 +762,8 @@ body{padding-top:28px}
       { id: "m4", tipo: "mesa", altura: "alta", tamano: "pequena", nombre: "4", x: 16, y: 58 },
       { id: "m5", tipo: "mesa", altura: "alta", tamano: "pequena", nombre: "5", x: 42, y: 58 },
       { id: "m6", tipo: "mesa", altura: "baja", tamano: "grande", nombre: "6", x: 72, y: 62 },
-      { id: "o1", tipo: "puerta", nombre: "", x: 92, y: 90 }
+      { id: "o1", tipo: "accesorio", subtipo: "puerta", nombre: "", x: 92, y: 90 },
+      { id: "o2", tipo: "accesorio", subtipo: "barra", nombre: "", x: 50, y: 92 }
     ],
     // Tickets abiertos por mesa (o "barra"): { numero, lineas:[...], estado: "abierta"|"cuenta_pedida" }.
     // Vive en memoria (como el resto del demo) — cuando se cobra el ticket, se borra y la mesa vuelve a libre.
@@ -774,9 +777,27 @@ body{padding-top:28px}
       var guardado = JSON.parse(localStorage.getItem("ratio.salon") || "null");
       if (guardado && Array.isArray(guardado)) DEMO.salon = guardado;
     } catch(e){ /* layout corrupto: nos quedamos con el de ejemplo */ }
+    // Compatibilidad con planos guardados antes de tener varios tipos de accesorio (solo puerta).
+    DEMO.salon = DEMO.salon.map(function(el){
+      if (el.tipo === "puerta") return { id: el.id, tipo: "accesorio", subtipo: "puerta", nombre: el.nombre || "", x: el.x, y: el.y };
+      return el;
+    });
   })();
   function guardarSalon(){
     try { localStorage.setItem("ratio.salon", JSON.stringify(DEMO.salon)); } catch(e){}
+  }
+
+  // Las comandas abiertas (tickets por mesa) se persisten igual que el plano del salón: si no,
+  // recargar la página (o que el navegador recargue la pestaña en segundo plano) se cargaría por
+  // delante todas las cuentas en curso sin avisar — justo lo que no puede pasar en un TPV real.
+  (function cargarTicketsGuardados(){
+    try {
+      var guardado = JSON.parse(localStorage.getItem("ratio.ticketsMesa") || "null");
+      if (guardado && typeof guardado === "object") DEMO.ticketsMesa = guardado;
+    } catch(e){ /* estado corrupto: empezamos sin comandas abiertas */ }
+  })();
+  function guardarTicketsMesa(){
+    try { localStorage.setItem("ratio.ticketsMesa", JSON.stringify(DEMO.ticketsMesa)); } catch(e){}
   }
 
   // El stock de cada producto es SIEMPRE entradas (compras) menos salidas (ventas/mermas) de su
@@ -1547,14 +1568,26 @@ body{padding-top:28px}
     return p.iva === 21 ? 21 : 10;
   }
 
-  // ---- Número de ticket: correlativo propio del TPV, independiente del id interno de la venta,
-  // persistido para que no se repita aunque se recargue la página. ----
+  // ---- Numeración FISCAL de la factura simplificada: correlativo real, persistido, que NO se
+  // asigna al abrir una mesa sino solo al cobrar — porque el devengo (y por tanto la numeración
+  // legal) se produce cuando se presta el servicio, que aquí es el momento del cobro. ----
   function tpvProximoNumero(){
     return (parseInt(localStorage.getItem("ratio.tpvContador") || "0", 10) || 0) + 1;
   }
   function tpvConsumirNumero(){
     var n = tpvProximoNumero();
     localStorage.setItem("ratio.tpvContador", String(n));
+    return n;
+  }
+
+  // ---- Numeración INTERNA (proforma): solo para identificar la comanda mientras está abierta,
+  // sin ningún valor fiscal — es la que se ve en pantalla mientras se sirve la mesa. ----
+  function comandaProximoNumero(){
+    return (parseInt(localStorage.getItem("ratio.comandaContador") || "0", 10) || 0) + 1;
+  }
+  function comandaConsumirNumero(){
+    var n = comandaProximoNumero();
+    localStorage.setItem("ratio.comandaContador", String(n));
     return n;
   }
 
@@ -1600,7 +1633,7 @@ body{padding-top:28px}
     $("btnEditarSalon").addEventListener("click", function(){ toggleEditarSalon(true); });
     $("btnSalonHecho").addEventListener("click", function(){ toggleEditarSalon(false); });
     $("btnAnadirMesa").addEventListener("click", salonAnadirMesa);
-    $("btnAnadirPuerta").addEventListener("click", salonAnadirPuerta);
+    $("btnAnadirAccesorio").addEventListener("click", salonAbrirChooserAccesorio);
   }
 
   // =====================================================================
@@ -1635,8 +1668,10 @@ body{padding-top:28px}
           '<span class="sub">' + (el.altura === "alta" ? "alta" : "baja") + '</span>' +
           '</div>';
       }
-      return '<div class="salon-accesorio' + (salonEditando ? ' editando' : '') + '" data-salon-id="' + esc(el.id) + '" ' +
-        'style="left:' + el.x + '%; top:' + el.y + '%" title="Puerta">🚪</div>';
+      var info = ACCESORIO_INFO[el.subtipo] || ACCESORIO_INFO.decoracion;
+      return '<div class="salon-accesorio' + (el.subtipo === "barra" ? " barra" : "") + (salonEditando ? ' editando' : '') + '" data-salon-id="' + esc(el.id) + '" ' +
+        'style="left:' + el.x + '%; top:' + el.y + '%" title="' + esc(info.etiqueta) + '">' + info.icono +
+        (el.subtipo === "barra" ? '<span class="sub">BARRA</span>' : '') + '</div>';
     }).join("");
     qsa("[data-salon-id]", canvas).forEach(function(nodo){ wireSalonElemento(nodo); });
     var barraEst = estadoMesa("barra");
@@ -1650,16 +1685,68 @@ body{padding-top:28px}
     pintarSalon();
   }
 
+  // Tipos de accesorio disponibles en el editor, con su icono y etiqueta.
+  var ACCESORIO_INFO = {
+    puerta: { icono: "🚪", etiqueta: "Puerta" },
+    pilar: { icono: "▦", etiqueta: "Pilar / columna" },
+    barra: { icono: "🍹", etiqueta: "Barra del bar" },
+    decoracion: { icono: "🪴", etiqueta: "Decorativo" }
+  };
+
+  // Posiciones de partida escalonadas para que un elemento recién añadido NUNCA aparezca
+  // tapado exactamente por otro ya existente — si no, parece que "no se añade nada".
+  function salonPosicionLibre(){
+    // Elige el primer punto de la rejilla que no quede encima de un elemento ya existente
+    // (umbral ~12% de distancia), para que un elemento nuevo nunca aparezca invisible bajo otro.
+    var puntos = [[18,18],[50,18],[82,18],[18,45],[50,45],[82,45],[18,72],[50,72],[82,72],
+                  [34,30],[66,30],[34,58],[66,58],[34,80],[66,80]];
+    var MIN_DIST = 12;
+    for (var i = 0; i < puntos.length; i++){
+      var libre = DEMO.salon.every(function(el){
+        var dx = el.x - puntos[i][0], dy = el.y - puntos[i][1];
+        return Math.sqrt(dx*dx + dy*dy) >= MIN_DIST;
+      });
+      if (libre) return { x: puntos[i][0], y: puntos[i][1] };
+    }
+    // Rejilla agotada: cae en el siguiente punto cíclico (no debería ocurrir con un salón normal).
+    var p = puntos[DEMO.salon.length % puntos.length];
+    return { x: p[0], y: p[1] };
+  }
+
   function salonAnadirMesa(){
     var n = DEMO.salon.filter(function(e){ return e.tipo === "mesa"; }).length + 1;
-    DEMO.salon.push({ id: "m" + Date.now(), tipo: "mesa", altura: "baja", tamano: "pequena", nombre: String(n), x: 50, y: 50 });
+    var pos = salonPosicionLibre();
+    var nueva = { id: "m" + Date.now(), tipo: "mesa", altura: "baja", tamano: "pequena", nombre: String(n), x: pos.x, y: pos.y };
+    DEMO.salon.push(nueva);
     guardarSalon();
     pintarSalon();
+    // Se abre su ficha al momento: así se ve de forma inequívoca que SÍ se ha añadido, y de paso
+    // se puede ponerle nombre/tipo sin tener que buscarla luego en el plano.
+    abrirFichaSalonElemento(nueva);
   }
-  function salonAnadirPuerta(){
-    DEMO.salon.push({ id: "o" + Date.now(), tipo: "puerta", nombre: "", x: 50, y: 10 });
+
+  function salonAbrirChooserAccesorio(){
+    openModal("Añadir accesorio");
+    $("modalBody").innerHTML = '<div class="tpv-grid">' +
+      Object.keys(ACCESORIO_INFO).map(function(subtipo){
+        var info = ACCESORIO_INFO[subtipo];
+        return '<div class="tpv-tile" data-accesorio="' + subtipo + '"><div class="nom">' + info.icono + ' ' + esc(info.etiqueta) + '</div></div>';
+      }).join("") +
+    '</div>';
+    qsa("[data-accesorio]", $("modalBody")).forEach(function(tile){
+      tile.addEventListener("click", function(){
+        salonAnadirAccesorio(tile.dataset.accesorio);
+        closeModal();
+      });
+    });
+  }
+  function salonAnadirAccesorio(subtipo){
+    var pos = salonPosicionLibre();
+    var nuevo = { id: "ac" + Date.now(), tipo: "accesorio", subtipo: subtipo, nombre: "", x: pos.x, y: pos.y };
+    DEMO.salon.push(nuevo);
     guardarSalon();
     pintarSalon();
+    toast((ACCESORIO_INFO[subtipo] || ACCESORIO_INFO.decoracion).etiqueta + " añadido — arrástralo a su sitio en el plano.", "ok");
   }
 
   // Tocar un elemento en modo normal entra en su comanda; en modo edición, lo arrastra (o,
@@ -1712,7 +1799,8 @@ body{padding-top:28px}
 
   function abrirFichaSalonElemento(elemento){
     if (elemento.tipo !== "mesa"){
-      openModal("Puerta / accesorio");
+      var infoAcc = ACCESORIO_INFO[elemento.subtipo] || ACCESORIO_INFO.decoracion;
+      openModal(infoAcc.etiqueta);
       $("modalBody").innerHTML = '<button class="btn danger" id="salonBorrar" type="button" style="width:100%">Quitar del plano</button>';
       $("salonBorrar").addEventListener("click", function(){
         DEMO.salon = DEMO.salon.filter(function(e){ return e.id !== elemento.id; });
@@ -1756,10 +1844,12 @@ body{padding-top:28px}
   }
 
   // ---- Entrar en la comanda de una mesa (o la barra): si no tenía ticket abierto, se abre uno
-  // nuevo con su propio número correlativo; si ya tenía, se retoma tal cual se dejó. ----
+  // nuevo con su número INTERNO (sin valor fiscal); si ya tenía, se retoma tal cual se dejó.
+  // El número fiscal de verdad (factura simplificada) no se asigna aquí — ver abrirCobroTPV. ----
   function entrarMesa(mesaId, etiqueta){
     if (!DEMO.ticketsMesa[mesaId]){
-      DEMO.ticketsMesa[mesaId] = { numero: tpvConsumirNumero(), lineas: [], estado: "abierta", etiqueta: etiqueta };
+      DEMO.ticketsMesa[mesaId] = { numeroInterno: comandaConsumirNumero(), numero: null, lineas: [], estado: "abierta", etiqueta: etiqueta };
+      guardarTicketsMesa();
     }
     mesaActiva = mesaId;
     ticketActivo = DEMO.ticketsMesa[mesaId];
@@ -1915,12 +2005,15 @@ body{padding-top:28px}
     var tramos = $("tpvIvaDesglose");
     if (tramos) tramos.innerHTML = lineas.length ? tpvDesgloseHtml(tpvDesgloseIVA(lineas)) : "";
     var numEl = $("tpvNumeroTicket");
-    if (numEl) numEl.textContent = "Ticket #" + ticketActivo.numero + (ticketActivo.etiqueta ? " · " + ticketActivo.etiqueta : "");
+    // Mientras la mesa está abierta solo existe el número INTERNO (sin valor fiscal) — la
+    // factura simplificada definitiva todavía no se ha generado, así que no se llama "Ticket".
+    if (numEl) numEl.textContent = "Comanda #" + ticketActivo.numeroInterno + (ticketActivo.etiqueta ? " · " + ticketActivo.etiqueta : "");
     var cuentaBtn = $("tpvPedirCuenta");
     if (cuentaBtn){
       var pedida = ticketActivo.estado === "cuenta_pedida";
       cuentaBtn.textContent = pedida ? "🧾 Cuenta ✓" : "🧾 Cuenta";
     }
+    guardarTicketsMesa();
   }
 
   function abrirCobroTPV(){
@@ -1928,9 +2021,12 @@ body{padding-top:28px}
     var lineas = ticketActivo.lineas;
     var total = tpvTotal();
     var tramos = tpvDesgloseIVA(lineas);
-    var numero = ticketActivo.numero;
     var mesaId = mesaActiva;
-    openModal("Cobrar · Ticket #" + numero);
+    var etiquetaMesa = ticketActivo.etiqueta || "Barra";
+    // El número de factura simplificada NO existe todavía: por ley, la venta (y su numeración)
+    // se produce cuando se presta el servicio, que en este TPV es el momento del cobro — se
+    // genera dentro de cerrarYCobrar(), nunca antes.
+    openModal("Cobrar · " + etiquetaMesa);
     $("modalBody").innerHTML =
       '<div class="card tight" style="margin-bottom:14px">' +
         '<div class="row between"><span class="txt" style="margin:0">Total</span>' +
@@ -1954,9 +2050,12 @@ body{padding-top:28px}
     function cerrarYCobrar(metodo, desglosePago){
       var hoy = new Date().toISOString().slice(0,10);
       var id = "tpv-v" + Date.now();
+      // El número de factura simplificada se genera AQUÍ, en el momento del cobro — es cuando
+      // la ley considera prestado el servicio (devengo), no cuando se abrió la mesa.
+      var numeroDefinitivo = tpvConsumirNumero();
       var nuevaVenta = {
         id: id,
-        numero: "Ticket #" + numero,
+        numero: "Factura simplificada #" + numeroDefinitivo,
         fecha: hoy,
         total: total,
         estado: "confirmada",
@@ -1971,8 +2070,9 @@ body{padding-top:28px}
       });
       sb.rpc("confirmar_venta", { p_venta: id }).then(function(){
         var metodoTxt = metodo === "mixto" ? "pago mixto" : (metodo === "efectivo" ? "efectivo" : "tarjeta");
-        toast("Ticket #"+numero+" cobrado: "+eur(total)+" ("+metodoTxt+"). Stock actualizado.", "ok");
+        toast("Factura simplificada #"+numeroDefinitivo+" cobrada: "+eur(total)+" ("+metodoTxt+"). Stock actualizado.", "ok");
         delete DEMO.ticketsMesa[mesaId];
+        guardarTicketsMesa();
         closeModal();
         volverSalon();
         if (state.view === "ventas") cargarVentas();
@@ -3885,16 +3985,13 @@ body{padding-top:28px}
       '<label>Nombre</label>' +
       '<input type="text" id="nuevoPlatoNombre" placeholder="Ej. Ensalada César" style="margin-bottom:12px">' +
       '<label>Familia (dónde aparece en el TPV)</label>' +
-      '<input type="text" id="nuevoPlatoFamilia" placeholder="Ej. Comida" value="'+esc(tpvFamiliaActiva||"")+'" style="margin-bottom:12px">' +
-      '<div class="row" style="gap:8px; margin-bottom:12px">' +
+      '<input type="text" id="nuevoPlatoFamilia" placeholder="Ej. Comida" value="'+esc(tpvFamiliaActiva||"")+'" style="margin-bottom:4px">' +
+      '<p class="meta" id="nuevoPlatoFamiliaNota" style="margin:0 0 12px">&nbsp;</p>' +
+      '<div class="row" style="gap:8px; margin-bottom:4px">' +
         '<div style="flex:1"><label>Precio de venta</label><input type="number" step="0.01" min="0" id="nuevoPlatoPvp" placeholder="0,00"></div>' +
-        '<div style="flex:1"><label>IVA</label>' +
-          '<select id="nuevoPlatoIva">' +
-            '<option value="10" selected>10% (consumo en barra/mesa, incluido alcohol)</option>' +
-            '<option value="21">21% (solo venta para llevar SIN servicio)</option>' +
-          '</select>' +
-        '</div>' +
+        '<div style="flex:1"><label>IVA</label><div style="padding:11px 0; font-weight:700">10% (hostelería)</div></div>' +
       '</div>' +
+      '<p class="meta" style="margin:0 0 12px">Venta servida en barra/mesa: siempre 10%, alcohol incluido (art. 91 LIVA).</p>' +
       '<label class="row" style="gap:8px; align-items:center; font-weight:400; margin-bottom:10px">' +
         '<input type="checkbox" id="nuevoPlatoCombinable" style="width:auto">' +
         '<span>Es una base combinable (whisky, ron, ginebra…) — en el TPV se preguntará con qué se toma</span>' +
@@ -3914,30 +4011,48 @@ body{padding-top:28px}
       return existentes.concat(FAMILIAS_SUGERIDAS.filter(function(f){ return existentes.indexOf(f) === -1; }));
     }, []);
     wireAutocomplete($("nuevoPlatoBaseNombre"), function(){ return DEMO.inventario.map(function(p){ return p.nombre; }); }, []);
+    // Una base combinable (whisky, ron, ginebra…) es SIEMPRE de la familia "Combinados" — no una
+    // sugerencia que se pueda pisar, sino fija mientras la casilla esté marcada.
     $("nuevoPlatoCombinable").addEventListener("change", function(){
       $("nuevoPlatoBaseBox").hidden = !this.checked;
-      if (this.checked && !$("nuevoPlatoFamilia").value.trim()) $("nuevoPlatoFamilia").value = "Combinados";
+      if (this.checked){
+        $("nuevoPlatoFamilia").value = "Combinados";
+        $("nuevoPlatoFamilia").setAttribute("readonly", "readonly");
+        $("nuevoPlatoFamiliaNota").textContent = "Fijada a \"Combinados\": toda base combinable va siempre en esa familia.";
+      } else {
+        $("nuevoPlatoFamilia").removeAttribute("readonly");
+        $("nuevoPlatoFamiliaNota").innerHTML = "&nbsp;";
+      }
     });
     $("guardarNuevoPlato").addEventListener("click", function(){
       var nombre = $("nuevoPlatoNombre").value.trim();
-      var familia = $("nuevoPlatoFamilia").value.trim() || "Sin categoría";
       var pvp = parseFloat($("nuevoPlatoPvp").value);
-      var iva = parseInt($("nuevoPlatoIva").value, 10);
       var esCombinable = $("nuevoPlatoCombinable").checked;
+      var familia = esCombinable ? "Combinados" : ($("nuevoPlatoFamilia").value.trim() || "Sin categoría");
       if (!nombre){ toast("Escribe el nombre del plato.", "err"); return; }
       if (DEMO.platos.some(function(p){ return norm(p.nombre)===norm(nombre); })){
         toast("Ya existe un plato con ese nombre.", "err");
         return;
       }
-      var nuevo = { id: "pl"+Date.now()+Math.random(), nombre: nombre, familia: familia, iva: iva===21?21:10 };
+      // Venta en barra/mesa: siempre 10% (art. 91 LIVA) — ver ivaTPVPlato(). No hay selector:
+      // así no se puede volver a colar un 21% por error.
+      var nuevo = { id: "pl"+Date.now()+Math.random(), nombre: nombre, familia: familia, iva: 10 };
       if (pvp >= 0) nuevo.pvp = pvp;
       if (esCombinable){
         var baseNombre = $("nuevoPlatoBaseNombre").value.trim();
         var baseCant = parseFloat($("nuevoPlatoBaseCant").value);
         var baseUnidad = $("nuevoPlatoBaseUnidad").value.trim() || "ud";
-        var item = DEMO.inventario.find(function(p){ return norm(p.nombre) === norm(baseNombre); });
-        if (!baseNombre || !item){ toast('Indica un ingrediente base que ya exista en Artículos/Almacén.', "err"); return; }
+        if (!baseNombre){ toast("Indica el ingrediente base (p.ej. Whisky).", "err"); return; }
         if (!(baseCant > 0)){ toast("Indica la cantidad por ración del ingrediente base.", "err"); return; }
+        // Si el ingrediente base no existe todavía en Artículos/Almacén, se crea sobre la marcha
+        // (igual que el resto de la app: autocompletar + crear si no existe), en vez de bloquear
+        // la creación del combinado exigiendo que ya estuviera dado de alta.
+        var item = DEMO.inventario.find(function(p){ return norm(p.nombre) === norm(baseNombre); });
+        if (!item){
+          item = { id: "i"+Date.now()+Math.random(), nombre: baseNombre, zona: "Barra", esperado: 0, unidad: baseUnidad, familia: "Combinados" };
+          DEMO.inventario.push(item);
+          DEMO.movimientos[item.nombre] = DEMO.movimientos[item.nombre] || [];
+        }
         nuevo.combinable = true;
         nuevo.ingredienteBaseId = item.id;
         nuevo.cantidadBase = baseCant;
