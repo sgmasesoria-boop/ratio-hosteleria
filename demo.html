@@ -235,6 +235,41 @@ body{padding-top:28px}
 .searchbox-input input[type=text]:focus{outline:none}
 .searchbox-input:focus-within{border-color:var(--focus)}
 
+/* ---- TPV: izquierda ticket/cobro, derecha familias + platos (en pantalla ancha se ponen
+   lado a lado; en móvil se apilan, ticket arriba) ---- */
+.tpv-wrap{display:flex; flex-direction:column; gap:14px}
+@media (min-width:680px){
+  .tpv-wrap{flex-direction:row; align-items:flex-start}
+  .tpv-ticket{width:270px; flex:none; position:sticky; top:14px}
+  .tpv-catalogo{flex:1; min-width:0}
+}
+.tpv-ticket{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px}
+.tpv-ticket-lines{max-height:280px; overflow-y:auto; margin-bottom:10px}
+.tpv-line{display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--border)}
+.tpv-line:last-child{border-bottom:none}
+.tpv-line .nom{flex:1; font-weight:700; font-size:.84rem; min-width:0}
+.tpv-qtybox{display:flex; align-items:center; gap:6px; flex:none}
+.tpv-qtybox button{width:26px; height:26px; border-radius:7px; border:1px solid var(--border); background:var(--surface-2); font-weight:700; cursor:pointer; font-family:inherit}
+.tpv-qtybox span{min-width:16px; text-align:center; font-weight:700; font-size:.82rem}
+.tpv-total{font-weight:800; font-size:1.05rem; padding-top:8px; border-top:1px solid var(--border)}
+.tpv-fam{display:flex; gap:6px; overflow-x:auto; margin-bottom:10px; padding-bottom:2px}
+.tpv-fam button{flex:none; border:none; background:var(--surface-2); padding:8px 14px; border-radius:999px; font-weight:700; font-size:.8rem; color:var(--muted); cursor:pointer; white-space:nowrap; font-family:inherit}
+.tpv-fam button.active{background:var(--accent); color:var(--accent-ink)}
+.tpv-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:10px}
+.tpv-tile{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px 10px; text-align:center; cursor:pointer}
+.tpv-tile:active{opacity:.7}
+.tpv-tile .nom{font-weight:700; font-size:.85rem; margin-bottom:4px}
+.tpv-tile .precio{color:var(--muted); font-size:.78rem}
+
+/* ---- Foto del plato: detección de ingredientes sobre la propia imagen ---- */
+.foto-plato-wrap{position:relative; width:100%; border-radius:12px; overflow:hidden; margin-bottom:14px; background:#000}
+.foto-plato-wrap img{display:block; width:100%; height:auto}
+.foto-bocadillo{position:absolute; background:#fff; border-radius:10px; padding:6px 8px; box-shadow:0 2px 10px rgba(0,0,0,.35); display:flex; align-items:center; gap:6px; max-width:150px}
+.foto-bocadillo input[type=text]{border:none; background:transparent; font-weight:700; font-size:.78rem; padding:2px; width:76px}
+.foto-bocadillo input[type=number]{border:none; background:var(--surface-2); font-size:.78rem; padding:2px 4px; width:44px; border-radius:5px; text-align:right}
+.foto-bocadillo .uni{font-size:.72rem; color:var(--muted)}
+.foto-bocadillo .quitar{border:none; background:none; color:var(--bad); font-weight:800; cursor:pointer; padding:0 2px; font-size:.85rem}
+
 .cmpline{padding:10px 0; border-bottom:1px solid var(--border)}
 .cmpline:last-child{border-bottom:none}
 .cmpline .cmphead{display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-bottom:4px}
@@ -433,11 +468,30 @@ body{padding-top:28px}
       </div>
     </section>
 
+    <section id="tpvView" class="view">
+      <h1>TPV</h1>
+      <div class="tpv-wrap">
+        <div class="tpv-ticket">
+          <div id="tpvTicketLines" class="tpv-ticket-lines"><div class="empty">Toca un plato para añadirlo.</div></div>
+          <div class="row between tpv-total"><span>Total</span><span id="tpvTotal">0,00 €</span></div>
+          <div class="row" style="gap:8px; margin-top:10px">
+            <button class="btn" id="tpvVaciar" type="button" style="flex:1">Vaciar</button>
+            <button class="btn primary" id="tpvCobrar" type="button" style="flex:2">Cobrar</button>
+          </div>
+        </div>
+        <div class="tpv-catalogo">
+          <div class="tpv-fam" id="tpvFamilias"></div>
+          <div id="tpvGrid" class="tpv-grid"><div class="empty">Cargando…</div></div>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <nav class="tabs" id="tabs" hidden>
     <div class="inner">
-      <button data-view="compras" class="active" type="button"><span class="ic">▤</span>Compras</button>
+      <button data-view="tpv" class="active" type="button"><span class="ic">🧾</span>TPV</button>
+      <button data-view="compras" type="button"><span class="ic">▤</span>Compras</button>
       <button data-view="ventas" type="button"><span class="ic">💶</span>Ventas</button>
       <button data-view="info" type="button"><span class="ic">ⓘ</span>Informes</button>
       <button data-view="almacen" type="button"><span class="ic">📦</span>Artículos/<br>Almacén</button>
@@ -492,7 +546,9 @@ body{padding-top:28px}
       { id: "i2", nombre: "Jamón ibérico", zona: "Cámara", esperado: 3, unidad: "kg", familia: "Carnes y embutidos" },
       { id: "i3", nombre: "Patatas", zona: "Almacén", esperado: 40, unidad: "kg", familia: "Frutas y verduras" },
       { id: "i4", nombre: "Aceite de oliva", zona: "Almacén", esperado: 15, unidad: "l", familia: "Aceites y conservas" },
-      { id: "i5", nombre: "Cerveza de barril", zona: "Barra", esperado: 2, unidad: "barril", familia: "Bebidas" }
+      { id: "i5", nombre: "Cerveza de barril", zona: "Barra", esperado: 2, unidad: "barril", familia: "Bebidas" },
+      { id: "i6", nombre: "Whisky", zona: "Barra", esperado: 300, unidad: "cl", familia: "Bebidas" },
+      { id: "i7", nombre: "Coca-Cola", zona: "Barra", esperado: 48, unidad: "ud", familia: "Bebidas" }
     ],
     // "precio" en cada movimiento: precio de compra en las entradas, precio de venta en las
     // salidas. Es lo que permite ver la evolución del precio en la ficha del producto y valorar
@@ -518,6 +574,12 @@ body{padding-top:28px}
       "Cerveza de barril": [
         { fecha: "2026-10-15", tipo: "entrada", cantidad: 2, precio: 81.90, origen: "Compra · Bebidas Alpujarra" },
         { fecha: "2026-10-27", tipo: "salida", cantidad: 1, precio: 2.40, origen: "Venta · Ticket Z" }
+      ],
+      "Whisky": [
+        { fecha: "2026-10-12", tipo: "entrada", cantidad: 300, precio: 0.09, origen: "Compra · Bebidas Alpujarra" }
+      ],
+      "Coca-Cola": [
+        { fecha: "2026-10-12", tipo: "entrada", cantidad: 48, precio: 0.58, origen: "Compra · Bebidas Alpujarra" }
       ]
     },
     regularizaciones: [],
@@ -529,18 +591,34 @@ body{padding-top:28px}
       { id: "p3", nombre: "Carnes Sierra Nevada" },
       { id: "p4", nombre: "Bebidas Alpujarra" }
     ],
+    // "familia" agrupa los platos en la pantalla del TPV (categorías del menú); "pvp" es el
+    // precio de venta por defecto que propone el TPV al tocar el plato (se puede ajustar en
+    // cualquier ticket sin tocar este valor).
     platos: [
-      { id: "pl1", nombre: "Hamburguesa Casa" },
-      { id: "pl2", nombre: "Ensaladilla Rusa" },
-      { id: "pl3", nombre: "Caña Alhambra" }
+      { id: "pl1", nombre: "Hamburguesa Casa", familia: "Comida", pvp: 11.50 },
+      { id: "pl2", nombre: "Ensaladilla Rusa", familia: "Comida", pvp: 6.50 },
+      { id: "pl3", nombre: "Caña Alhambra", familia: "Bebidas", pvp: 2.40 },
+      { id: "pl4", nombre: "Ración de Jamón", familia: "Comida", pvp: 14.00 },
+      { id: "pl5", nombre: "Coca-Cola", familia: "Bebidas", pvp: 2.20 },
+      { id: "pl6", nombre: "Whisky con Coca-Cola", familia: "Combinados", pvp: 8.00 }
     ],
     // Escandallo = receta de cada plato: qué productos del almacén lleva y en qué cantidad por
     // ración. Con eso se calcula el coste real (y el margen real, sustituyendo al margen de
     // ejemplo de "rentabilidad"). Si un plato no tiene líneas aquí, es que aún no se ha definido.
+    // "Coca-Cola" (pl5) se vende sin escandallo: al no tener receta, el TPV descuenta directamente
+    // el producto "Coca-Cola" del almacén por su nombre — así una misma Coca-Cola sirve tanto para
+    // venderse sola como para formar parte de un combinado (pl6), sin duplicar nada.
     escandallos: {
       pl1: [
         { id: "esc1", producto_id: "i3", nombre: "Patatas", cantidad: 0.2, unidad: "kg" },
         { id: "esc2", producto_id: "i4", nombre: "Aceite de oliva", cantidad: 0.03, unidad: "l" }
+      ],
+      pl4: [
+        { id: "esc3", producto_id: "i2", nombre: "Jamón ibérico", cantidad: 0.1, unidad: "kg" }
+      ],
+      pl6: [
+        { id: "esc4", producto_id: "i6", nombre: "Whisky", cantidad: 4, unidad: "cl" },
+        { id: "esc5", producto_id: "i7", nombre: "Coca-Cola", cantidad: 1, unidad: "ud" }
       ]
     },
     compras: [
@@ -1114,7 +1192,9 @@ body{padding-top:28px}
     }
   };
 
-  var state = { session:null, negocios:[], negocioId:null, view:"compras", comprasCache:[], comprasErr:null, ventasCache:[], ventasErr:null };
+  var state = { session:null, negocios:[], negocioId:null, view:"tpv", comprasCache:[], comprasErr:null, ventasCache:[], ventasErr:null };
+  var tpvTicket = [];
+  var tpvFamiliaActiva = null;
 
   function $(id){ return document.getElementById(id); }
   function qs(sel, root){ return (root||document).querySelector(sel); }
@@ -1229,7 +1309,7 @@ body{padding-top:28px}
       state.negocioId = elegido.id;
       $("negNombre").textContent = elegido.nombre;
       $("statusDot").classList.remove("off");
-      irA("compras");
+      irA("tpv");
       renderOtrosNegocios();
     });
   }
@@ -1313,6 +1393,159 @@ body{padding-top:28px}
     if (view==="ventas") cargarVentas();
     if (view==="info") cargarInfo();
     if (view==="almacen") cargarAlmacen();
+    if (view==="tpv") cargarTPV();
+  }
+
+  // ---------- TPV: venta rápida por familias, cobro y descuento de stock al vuelo ----------
+  function familiasConPlatos(){
+    var vistas = {}, out = [];
+    DEMO.platos.forEach(function(p){
+      var f = p.familia || "Sin categoría";
+      if (!vistas[f]){ vistas[f] = true; out.push(f); }
+    });
+    return out;
+  }
+
+  function precioTPVPlato(p){
+    return p.pvp != null ? p.pvp : precioVentaMedioPlato(p.id);
+  }
+
+  function cargarTPV(){
+    if (!tpvFamiliaActiva || familiasConPlatos().indexOf(tpvFamiliaActiva) === -1){
+      tpvFamiliaActiva = familiasConPlatos()[0] || null;
+    }
+    pintarTPVFamilias();
+    pintarTPVGrid();
+    pintarTPVTicket();
+    if (!$("tpvCobrar").dataset.wired){
+      $("tpvCobrar").dataset.wired = "1";
+      $("tpvCobrar").addEventListener("click", abrirCobroTPV);
+      $("tpvVaciar").addEventListener("click", function(){
+        if (!tpvTicket.length) return;
+        tpvTicket = [];
+        pintarTPVTicket();
+      });
+    }
+  }
+
+  function pintarTPVFamilias(){
+    var fams = familiasConPlatos();
+    $("tpvFamilias").innerHTML = fams.map(function(f){
+      return '<button data-fam="'+esc(f)+'" class="'+(f===tpvFamiliaActiva?"active":"")+'" type="button">'+esc(f)+'</button>';
+    }).join("");
+    qsa("[data-fam]", $("tpvFamilias")).forEach(function(b){
+      b.addEventListener("click", function(){
+        tpvFamiliaActiva = b.dataset.fam;
+        pintarTPVFamilias();
+        pintarTPVGrid();
+      });
+    });
+  }
+
+  function pintarTPVGrid(){
+    var el = $("tpvGrid");
+    var items = DEMO.platos
+      .filter(function(p){ return (p.familia || "Sin categoría") === tpvFamiliaActiva; })
+      .slice()
+      .sort(function(a,b){ return norm(a.nombre) < norm(b.nombre) ? -1 : 1; });
+    if (!items.length){ el.innerHTML = '<div class="empty">Sin platos en esta familia todavía.</div>'; return; }
+    el.innerHTML = items.map(function(p){
+      var precio = precioTPVPlato(p);
+      return '<div class="tpv-tile" data-tpv-add="'+p.id+'">' +
+        '<div class="nom">'+esc(p.nombre)+'</div>' +
+        '<div class="precio">'+(precio!=null?eur(precio):"sin precio")+'</div>' +
+      '</div>';
+    }).join("");
+    qsa("[data-tpv-add]", el).forEach(function(tile){
+      tile.addEventListener("click", function(){ tpvAnadir(tile.dataset.tpvAdd); });
+    });
+  }
+
+  function tpvAnadir(platoId){
+    var plato = DEMO.platos.find(function(p){ return p.id === platoId; });
+    if (!plato) return;
+    var precio = precioTPVPlato(plato) || 0;
+    var linea = tpvTicket.find(function(l){ return l.platoId === platoId; });
+    if (linea) linea.cantidad += 1;
+    else tpvTicket.push({ platoId: platoId, nombre: plato.nombre, precio: precio, cantidad: 1 });
+    pintarTPVTicket();
+  }
+
+  function tpvTotal(){
+    return tpvTicket.reduce(function(s,l){ return s + l.precio*l.cantidad; }, 0);
+  }
+
+  function pintarTPVTicket(){
+    var box = $("tpvTicketLines");
+    if (!tpvTicket.length){
+      box.innerHTML = '<div class="empty">Toca un plato para añadirlo.</div>';
+    } else {
+      box.innerHTML = tpvTicket.map(function(l, i){
+        return '<div class="tpv-line">' +
+          '<span class="nom">'+esc(l.nombre)+'</span>' +
+          '<div class="tpv-qtybox">' +
+            '<button type="button" data-tpv-menos="'+i+'">−</button>' +
+            '<span>'+l.cantidad+'</span>' +
+            '<button type="button" data-tpv-mas="'+i+'">+</button>' +
+          '</div>' +
+          '<span class="meta" style="width:58px; text-align:right; margin:0">'+eur(l.precio*l.cantidad)+'</span>' +
+        '</div>';
+      }).join("");
+      qsa("[data-tpv-mas]", box).forEach(function(b){
+        b.addEventListener("click", function(){ tpvTicket[+b.dataset.tpvMas].cantidad++; pintarTPVTicket(); });
+      });
+      qsa("[data-tpv-menos]", box).forEach(function(b){
+        b.addEventListener("click", function(){
+          var i = +b.dataset.tpvMenos;
+          tpvTicket[i].cantidad--;
+          if (tpvTicket[i].cantidad <= 0) tpvTicket.splice(i,1);
+          pintarTPVTicket();
+        });
+      });
+    }
+    $("tpvTotal").textContent = eur(tpvTotal());
+  }
+
+  function abrirCobroTPV(){
+    if (!tpvTicket.length){ toast("Añade algún plato antes de cobrar.", "err"); return; }
+    var total = tpvTotal();
+    openModal("Cobrar");
+    $("modalBody").innerHTML =
+      '<div class="card tight row between" style="margin-bottom:14px">' +
+        '<span class="txt" style="margin:0">Total</span>' +
+        '<span class="txt" style="margin:0; font-size:1.3rem; font-weight:800">'+eur(total)+'</span>' +
+      '</div>' +
+      '<div class="row" style="gap:10px">' +
+        '<button class="btn primary" id="tpvPagarEfectivo" type="button" style="flex:1; padding:18px 0">💶 Efectivo</button>' +
+        '<button class="btn primary" id="tpvPagarTarjeta" type="button" style="flex:1; padding:18px 0">💳 Tarjeta</button>' +
+      '</div>';
+
+    function cobrar(metodo){
+      var hoy = new Date().toISOString().slice(0,10);
+      var id = "tpv-v" + Date.now();
+      var nuevaVenta = {
+        id: id,
+        numero: "TPV-" + new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}).replace(":",""),
+        fecha: hoy,
+        total: total,
+        estado: "confirmada",
+        tipo_documento: "tpv",
+        metodo_pago: metodo
+      };
+      DEMO.ventas.unshift(nuevaVenta);
+      DEMO.ventaLineas[id] = tpvTicket.map(function(l){
+        return { id: "vl-tpv-"+Date.now()+Math.random(), plato_id: l.platoId, nombre: l.nombre, cantidad: l.cantidad, precio_unitario: l.precio };
+      });
+      sb.rpc("confirmar_venta", { p_venta: id }).then(function(){
+        toast("Cobrado "+eur(total)+" ("+(metodo==="efectivo"?"efectivo":"tarjeta")+"). Stock actualizado.", "ok");
+        tpvTicket = [];
+        pintarTPVTicket();
+        closeModal();
+        if (state.view === "ventas") cargarVentas();
+      });
+    }
+    $("tpvPagarEfectivo").addEventListener("click", function(){ cobrar("efectivo"); });
+    $("tpvPagarTarjeta").addEventListener("click", function(){ cobrar("tarjeta"); });
   }
 
   // ---------- INFORMES: catálogo de informes con parámetros y resultado ----------
@@ -1672,7 +1905,9 @@ body{padding-top:28px}
         '<div style="flex:1"><label style="font-size:.75rem">Cantidad (neta)</label><input type="number" step="any" min="0" id="escCantidadInput" placeholder="0"></div>' +
         '<div style="flex:1"><label style="font-size:.75rem">Merma %</label><input type="number" step="any" min="0" max="99" id="escMermaInput" placeholder="0"></div>' +
       '</div>' +
-      '<button class="btn sm" id="escAnadir" type="button" style="width:auto; margin-top:8px">+ Añadir ingrediente</button>';
+      '<button class="btn sm" id="escAnadir" type="button" style="width:auto; margin-top:8px">+ Añadir ingrediente</button>' +
+      '<button class="btn ghost sm" id="escFotoBtn" type="button" style="width:auto; margin-top:8px; margin-left:8px">📷 Foto del plato</button>' +
+      '<input type="file" accept="image/*" capture="environment" id="escFotoInput" hidden>';
 
     var resumen = "";
     if (coste){
@@ -1718,6 +1953,124 @@ body{padding-top:28px}
       toast("Ingrediente añadido.", "ok");
       onCambio();
     });
+    var fotoBtn = qs("#escFotoBtn", root), fotoInput = qs("#escFotoInput", root);
+    fotoBtn.addEventListener("click", function(){ fotoInput.click(); });
+    fotoInput.addEventListener("change", function(e){
+      var file = e.target.files[0];
+      e.target.value = "";
+      if (!file) return;
+      var plato = DEMO.platos.find(function(p){ return p.id === platoId; });
+      var lector = new FileReader();
+      lector.onload = function(ev){
+        abrirFotoPlato(platoId, plato ? plato.nombre : "", ev.target.result, onCambio);
+      };
+      lector.readAsDataURL(file);
+    });
+  }
+
+  // Detección de ingredientes a partir de la foto del plato: de momento es una simulación por
+  // palabras clave del nombre del plato (sin modelo de visión conectado — necesita backend). La
+  // idea es la misma que tendría la versión real: proponer ingrediente + gramaje aproximado sobre
+  // la propia foto, y que el usuario solo confirme o corrija, nunca que tenga que escribir desde
+  // cero. Cuantas más fotos corrija, mejor se podrán ajustar luego las sugerencias.
+  function simularDeteccionIngredientes(nombrePlato){
+    var n = norm(nombrePlato || "");
+    function tiene(palabra){ return n.indexOf(palabra) > -1; }
+    if (tiene("ensalada")) return [
+      { nombre: "Tomate", cantidad: 60, unidad: "g" },
+      { nombre: "Lechuga", cantidad: 40, unidad: "g" },
+      { nombre: "Cebolla", cantidad: 20, unidad: "g" }
+    ];
+    if (tiene("hamburguesa")) return [
+      { nombre: "Carne de ternera", cantidad: 150, unidad: "g" },
+      { nombre: "Pan de hamburguesa", cantidad: 70, unidad: "g" },
+      { nombre: "Queso", cantidad: 25, unidad: "g" }
+    ];
+    if (tiene("solomillo") || tiene("cerdo") || tiene("carne")) return [
+      { nombre: "Solomillo de cerdo", cantidad: 300, unidad: "g" },
+      { nombre: "Patatas", cantidad: 200, unidad: "g" }
+    ];
+    if (tiene("bocadillo") || tiene("sandwich") || tiene("sándwich")) return [
+      { nombre: "Pan", cantidad: 80, unidad: "g" },
+      { nombre: "Jamón ibérico", cantidad: 50, unidad: "g" }
+    ];
+    if (tiene("pasta") || tiene("espagueti") || tiene("macarron")) return [
+      { nombre: "Pasta", cantidad: 120, unidad: "g" },
+      { nombre: "Salsa", cantidad: 80, unidad: "g" }
+    ];
+    return [
+      { nombre: "Ingrediente principal", cantidad: 150, unidad: "g" },
+      { nombre: "Guarnición", cantidad: 80, unidad: "g" }
+    ];
+  }
+
+  // Posiciones de los "bocadillos" sobre la foto: repartidas para que no se amontonen encima
+  // unas de otras, sea cual sea el número de ingredientes detectados (hasta 5).
+  var FOTO_POSICIONES = [
+    { top: "8%", left: "6%" }, { top: "8%", right: "6%" },
+    { bottom: "28%", left: "4%" }, { bottom: "28%", right: "4%" },
+    { bottom: "6%", left: "30%" }
+  ];
+
+  function abrirFotoPlato(platoId, nombrePlato, dataUrl, onCambio){
+    var detectados = simularDeteccionIngredientes(nombrePlato).map(function(d, i){
+      return { nombre: d.nombre, cantidad: d.cantidad, unidad: d.unidad, pos: FOTO_POSICIONES[i % FOTO_POSICIONES.length] };
+    });
+
+    function pintar(){
+      var bocadillos = detectados.map(function(d, i){
+        var style = Object.keys(d.pos).map(function(k){ return k+":"+d.pos[k]; }).join("; ");
+        return '<div class="foto-bocadillo" style="'+style+'" data-boc="'+i+'">' +
+          '<input type="text" value="'+esc(d.nombre)+'" data-boc-nombre="'+i+'">' +
+          '<input type="number" step="any" min="0" value="'+d.cantidad+'" data-boc-cant="'+i+'">' +
+          '<span class="uni">'+esc(d.unidad)+'</span>' +
+          '<button type="button" class="quitar" data-boc-quitar="'+i+'">✕</button>' +
+        '</div>';
+      }).join("");
+      $("modalBody").innerHTML =
+        '<p class="lead" style="margin-top:0">Detección simulada a partir del nombre del plato — tócala para corregir el ingrediente o el gramaje antes de guardar. (Cuando conectemos un modelo de visión real, esto se rellenará directamente a partir de la foto.)</p>' +
+        '<div class="foto-plato-wrap"><img src="'+dataUrl+'" alt="Foto del plato">' + bocadillos + '</div>' +
+        '<button class="btn ghost sm" id="fotoAnadirIng" type="button" style="width:auto; margin-bottom:14px">+ Añadir ingrediente</button>' +
+        '<div class="row" style="gap:8px">' +
+          '<button class="btn" id="fotoCancelar" type="button" style="flex:1">Cancelar</button>' +
+          '<button class="btn primary" id="fotoGuardar" type="button" style="flex:2">Guardar en el escandallo</button>' +
+        '</div>';
+
+      qsa("[data-boc-nombre]", $("modalBody")).forEach(function(inp){
+        inp.addEventListener("input", function(){ detectados[+inp.dataset.bocNombre].nombre = inp.value; });
+      });
+      qsa("[data-boc-cant]", $("modalBody")).forEach(function(inp){
+        inp.addEventListener("input", function(){ detectados[+inp.dataset.bocCant].cantidad = parseFloat(inp.value) || 0; });
+      });
+      qsa("[data-boc-quitar]", $("modalBody")).forEach(function(btn){
+        btn.addEventListener("click", function(){ detectados.splice(+btn.dataset.bocQuitar, 1); pintar(); });
+      });
+      $("fotoAnadirIng").addEventListener("click", function(){
+        detectados.push({ nombre: "Ingrediente", cantidad: 50, unidad: "g", pos: FOTO_POSICIONES[detectados.length % FOTO_POSICIONES.length] });
+        pintar();
+      });
+      $("fotoCancelar").addEventListener("click", function(){ onCambio(); });
+      $("fotoGuardar").addEventListener("click", function(){
+        var validos = detectados.filter(function(d){ return d.nombre.trim() && d.cantidad > 0; });
+        if (!validos.length){ toast("No queda ningún ingrediente que guardar.", "err"); return; }
+        DEMO.escandallos[platoId] = DEMO.escandallos[platoId] || [];
+        validos.forEach(function(d){
+          var item = DEMO.inventario.find(function(p){ return norm(p.nombre) === norm(d.nombre); });
+          if (!item){
+            // Igual que al resolver una línea de compra: si el producto no existe todavía en
+            // Artículos/Almacén, se da de alta sobre la marcha para no frenar el flujo.
+            item = { id: "i"+Date.now()+Math.random(), nombre: d.nombre.trim(), zona: "Sin asignar", esperado: 0, unidad: d.unidad || "g", familia: "Sin clasificar" };
+            DEMO.inventario.push(item);
+          }
+          var existente = DEMO.escandallos[platoId].find(function(l){ return l.producto_id === item.id; });
+          if (existente){ existente.cantidad = d.cantidad; existente.unidad = d.unidad || existente.unidad; }
+          else DEMO.escandallos[platoId].push({ id: "esc"+Date.now()+Math.random(), producto_id: item.id, nombre: item.nombre, cantidad: d.cantidad, unidad: d.unidad || "g", merma_pct: 0 });
+        });
+        toast(validos.length+" ingrediente"+(validos.length===1?"":"s")+" añadido"+(validos.length===1?"":"s")+" desde la foto.", "ok");
+        onCambio();
+      });
+    }
+    pintar();
   }
 
   function renderFichaPlatoVentas(platoId, nombre){
