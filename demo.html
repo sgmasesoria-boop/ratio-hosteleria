@@ -620,14 +620,18 @@ body{padding-top:28px}
     platos: [
       { id: "pl1", nombre: "Hamburguesa Casa", familia: "Comida", pvp: 11.50, iva: 10 },
       { id: "pl2", nombre: "Ensaladilla Rusa", familia: "Comida", pvp: 6.50, iva: 10 },
-      { id: "pl3", nombre: "Caña Alhambra", familia: "Bebidas", pvp: 2.40, iva: 21 },
+      { id: "pl3", nombre: "Caña Alhambra", familia: "Bebidas", pvp: 2.40, iva: 10 },
       { id: "pl4", nombre: "Ración de Jamón", familia: "Comida", pvp: 14.00, iva: 10 },
       { id: "pl5", nombre: "Coca-Cola", familia: "Bebidas", pvp: 2.20, iva: 10, esRefresco: true },
       { id: "pl9", nombre: "Tónica", familia: "Bebidas", pvp: 2.20, iva: 10, esRefresco: true },
       { id: "pl10", nombre: "Fanta Naranja", familia: "Bebidas", pvp: 2.20, iva: 10, esRefresco: true },
-      { id: "pl6", nombre: "Whisky", familia: "Combinados", pvp: 6.00, iva: 21, combinable: true, ingredienteBaseId: "i6", cantidadBase: 4, unidadBase: "cl" },
-      { id: "pl7", nombre: "Ron", familia: "Combinados", pvp: 6.00, iva: 21, combinable: true, ingredienteBaseId: "i8", cantidadBase: 4, unidadBase: "cl" },
-      { id: "pl8", nombre: "Ginebra", familia: "Combinados", pvp: 6.50, iva: 21, combinable: true, ingredienteBaseId: "i9", cantidadBase: 4, unidadBase: "cl" }
+      // IVA 10% también para los combinados: servido en barra/mesa es "servicio de hostelería"
+      // (art. 91.Uno.2.2º Ley 37/1992 del IVA), que tributa como UNA prestación única al 10%,
+      // alcohol incluido. El 21% solo aplicaría a la venta de alcohol SIN servicio (p.ej. una
+      // botella para llevar), caso que este TPV no contempla todavía.
+      { id: "pl6", nombre: "Whisky", familia: "Combinados", pvp: 6.00, iva: 10, combinable: true, ingredienteBaseId: "i6", cantidadBase: 4, unidadBase: "cl" },
+      { id: "pl7", nombre: "Ron", familia: "Combinados", pvp: 6.00, iva: 10, combinable: true, ingredienteBaseId: "i8", cantidadBase: 4, unidadBase: "cl" },
+      { id: "pl8", nombre: "Ginebra", familia: "Combinados", pvp: 6.50, iva: 10, combinable: true, ingredienteBaseId: "i9", cantidadBase: 4, unidadBase: "cl" }
     ],
     // Escandallo = receta de cada plato: qué productos del almacén lleva y en qué cantidad por
     // ración. Con eso se calcula el coste real (y el margen real, sustituyendo al margen de
@@ -1439,7 +1443,12 @@ body{padding-top:28px}
     return p.pvp != null ? p.pvp : precioVentaMedioPlato(p.id);
   }
   function ivaTPVPlato(p){
-    return p.iva === 21 ? 21 : 10; // por defecto, tipo reducido (comida/bebida sin alcohol)
+    // Todo lo que se vende y consume en el local (barra o mesa) es "servicio de hostelería"
+    // (art. 91.Uno.2.2º Ley 37/1992 del IVA) y tributa SIEMPRE al 10%, alcohol incluido: es una
+    // prestación de servicio única, no una venta de bienes separados. El 21% queda reservado
+    // para un caso que este TPV no vende hoy: alcohol SIN servicio (p.ej. una botella para
+    // llevar, sin camareros ni menaje del propio bar).
+    return p.iva === 21 ? 21 : 10;
   }
 
   // ---- Número de ticket: correlativo propio del TPV, independiente del id interno de la venta,
@@ -3454,8 +3463,8 @@ body{padding-top:28px}
         '<div style="flex:1"><label>Precio de venta</label><input type="number" step="0.01" min="0" id="nuevoPlatoPvp" placeholder="0,00"></div>' +
         '<div style="flex:1"><label>IVA</label>' +
           '<select id="nuevoPlatoIva">' +
-            '<option value="10" selected>10% (comida / sin alcohol)</option>' +
-            '<option value="21">21% (alcohol)</option>' +
+            '<option value="10" selected>10% (consumo en barra/mesa, incluido alcohol)</option>' +
+            '<option value="21">21% (solo venta para llevar SIN servicio)</option>' +
           '</select>' +
         '</div>' +
       '</div>' +
