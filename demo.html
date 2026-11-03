@@ -261,6 +261,33 @@ body{padding-top:28px}
 .tpv-tile .nom{font-weight:700; font-size:.85rem; margin-bottom:4px}
 .tpv-tile .precio{color:var(--muted); font-size:.78rem}
 
+/* ---- Salón / plano de mesas ---- */
+.salon-leyenda{display:flex; gap:14px; flex-wrap:wrap; font-size:.76rem; color:var(--muted); margin-bottom:10px}
+.salon-leyenda span{display:inline-flex; align-items:center; gap:5px}
+.salon-leyenda i{width:9px; height:9px; border-radius:50%; display:inline-block}
+.salon-canvas{position:relative; width:100%; min-height:360px; background:var(--surface-2);
+  border:1px solid var(--border); border-radius:14px; overflow:hidden; touch-action:none}
+.salon-mesa{position:absolute; transform:translate(-50%,-50%); display:flex; align-items:center; justify-content:center;
+  flex-direction:column; border-radius:14px; border:2px solid var(--good); background:var(--good-bg); color:var(--good);
+  font-weight:800; font-size:.8rem; cursor:pointer; user-select:none; box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.salon-mesa.alta{border-radius:50%}
+.salon-mesa.pequena{width:56px; height:56px}
+.salon-mesa.grande{width:78px; height:60px}
+.salon-mesa.ocupada{border-color:var(--warn); background:var(--warn-bg); color:var(--warn)}
+.salon-mesa.cuenta{border-color:var(--bad); background:var(--bad-bg); color:var(--bad); animation:salonPulse 1.6s ease-in-out infinite}
+.salon-mesa .sub{font-size:.62rem; font-weight:600; opacity:.85}
+.salon-mesa.editando{cursor:grab}
+.salon-mesa.editando:active{cursor:grabbing}
+.salon-accesorio{position:absolute; transform:translate(-50%,-50%); width:34px; height:34px; display:flex; align-items:center;
+  justify-content:center; font-size:1.1rem; color:var(--muted); background:var(--surface); border:1px dashed var(--border);
+  border-radius:8px; cursor:default; user-select:none}
+.salon-accesorio.editando{cursor:grab}
+.salon-accesorio.editando:active{cursor:grabbing}
+.salon-canvas.editando .salon-mesa, .salon-canvas.editando .salon-accesorio{box-shadow:0 0 0 2px var(--accent)}
+.salon-paleta{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
+.salon-paleta .btn{flex:1; min-width:120px}
+@keyframes salonPulse{0%,100%{opacity:1}50%{opacity:.55}}
+
 /* ---- Foto del plato: detección de ingredientes sobre la propia imagen ---- */
 .foto-plato-wrap{position:relative; width:100%; border-radius:12px; overflow:hidden; margin-bottom:14px; background:#000}
 .foto-plato-wrap img{display:block; width:100%; height:auto}
@@ -470,10 +497,37 @@ body{padding-top:28px}
 
     <section id="tpvView" class="view">
       <h1>TPV</h1>
-      <div class="tpv-wrap">
+
+      <div id="tpvSalonPanel">
+        <div class="row between" style="margin-bottom:4px; align-items:center">
+          <p class="lead" style="margin:0">Toca una mesa para abrir su comanda.</p>
+          <button class="btn sm" id="btnEditarSalon" type="button">✏️ Editar salón</button>
+        </div>
+        <div class="salon-leyenda">
+          <span><i style="background:var(--good)"></i>Libre</span>
+          <span><i style="background:var(--warn)"></i>Ocupada</span>
+          <span><i style="background:var(--bad)"></i>Cuenta pedida</span>
+        </div>
+        <div id="salonCanvas" class="salon-canvas"></div>
+        <div id="salonPaleta" class="salon-paleta" hidden>
+          <button class="btn" id="btnAnadirMesa" type="button">+ Mesa</button>
+          <button class="btn" id="btnAnadirPuerta" type="button">+ Puerta</button>
+          <button class="btn primary" id="btnSalonHecho" type="button">✓ Hecho</button>
+        </div>
+        <button class="tpv-tile" id="tpvBarraBtn" type="button" style="width:100%; margin-top:14px; text-align:left; display:flex; align-items:center; justify-content:space-between">
+          <span class="nom" style="margin:0">🍺 Barra / Para llevar</span>
+          <span class="meta" id="tpvBarraEstado" style="margin:0">Libre</span>
+        </button>
+      </div>
+
+      <div id="tpvMesaPanel" class="tpv-wrap" hidden>
         <div class="tpv-ticket">
-          <div class="meta" id="tpvNumeroTicket" style="margin:0 0 8px">Ticket #1</div>
-          <div id="tpvTicketLines" class="tpv-ticket-lines"><div class="empty">Toca un plato para añadirlo.</div></div>
+          <div class="row between" style="margin:0 0 8px; align-items:center; gap:8px; flex-wrap:nowrap">
+            <button class="iconbtn" id="tpvVolverSalon" type="button" title="Volver a mesas" style="white-space:nowrap; flex:none">‹ Mesas</button>
+            <span class="meta" id="tpvNumeroTicket" style="margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">Ticket #1</span>
+            <button class="btn sm" id="tpvPedirCuenta" type="button" style="white-space:nowrap; flex:none">🧾 Cuenta</button>
+          </div>
+          <div id="tpvTicketLines" class="tpv-ticket-lines"><div class="empty">Mesa vacía. Toca un plato del catálogo para empezar.</div></div>
           <div class="row between tpv-total"><span>Total</span><span id="tpvTotal">0,00 €</span></div>
           <div id="tpvIvaDesglose"></div>
           <div class="row" style="gap:8px; margin-top:10px">
@@ -684,8 +738,34 @@ body{padding-top:28px}
         { id: "vl1", texto_original: "HAMBURGUESA CASA", cantidad: 9, precio_unitario: 11.5 },
         { id: "vl2", texto_original: "CANA ALHAMBRA", cantidad: 38, precio_unitario: 2.4 }
       ]
-    }
+    },
+    // Plano del salón: mesas (altura alta/baja, tamaño grande/pequeña) y accesorios (puertas…),
+    // posicionados en % sobre el lienzo (x,y de 0 a 100) para que se adapte a cualquier pantalla.
+    salon: [
+      { id: "m1", tipo: "mesa", altura: "baja", tamano: "pequena", nombre: "1", x: 16, y: 22 },
+      { id: "m2", tipo: "mesa", altura: "baja", tamano: "pequena", nombre: "2", x: 42, y: 22 },
+      { id: "m3", tipo: "mesa", altura: "baja", tamano: "grande", nombre: "3", x: 72, y: 24 },
+      { id: "m4", tipo: "mesa", altura: "alta", tamano: "pequena", nombre: "4", x: 16, y: 58 },
+      { id: "m5", tipo: "mesa", altura: "alta", tamano: "pequena", nombre: "5", x: 42, y: 58 },
+      { id: "m6", tipo: "mesa", altura: "baja", tamano: "grande", nombre: "6", x: 72, y: 62 },
+      { id: "o1", tipo: "puerta", nombre: "", x: 92, y: 90 }
+    ],
+    // Tickets abiertos por mesa (o "barra"): { numero, lineas:[...], estado: "abierta"|"cuenta_pedida" }.
+    // Vive en memoria (como el resto del demo) — cuando se cobra el ticket, se borra y la mesa vuelve a libre.
+    ticketsMesa: {}
   };
+
+  // El plano del salón se persiste localmente (como el contador de tickets) para que las
+  // mesas/accesorios que el dueño coloque sobrevivan a recargar la página en esta demo.
+  (function cargarSalonGuardado(){
+    try {
+      var guardado = JSON.parse(localStorage.getItem("ratio.salon") || "null");
+      if (guardado && Array.isArray(guardado)) DEMO.salon = guardado;
+    } catch(e){ /* layout corrupto: nos quedamos con el de ejemplo */ }
+  })();
+  function guardarSalon(){
+    try { localStorage.setItem("ratio.salon", JSON.stringify(DEMO.salon)); } catch(e){}
+  }
 
   // El stock de cada producto es SIEMPRE entradas (compras) menos salidas (ventas/mermas) de su
   // historial de movimientos, nunca solo lo comprado. Se recalcula al cargar; una regularización
@@ -1226,8 +1306,11 @@ body{padding-top:28px}
   };
 
   var state = { session:null, negocios:[], negocioId:null, view:"tpv", comprasCache:[], comprasErr:null, ventasCache:[], ventasErr:null };
-  var tpvTicket = [];
+  var mesaActiva = null;      // id de la mesa (o "barra") cuya comanda se está viendo, o null = plano del salón
+  var ticketActivo = null;    // referencia directa a DEMO.ticketsMesa[mesaActiva]
   var tpvFamiliaActiva = null;
+  var salonEditando = false;
+  var salonDrag = null;       // { el, elemento, canvasRect } mientras se arrastra una mesa/accesorio
 
   function $(id){ return document.getElementById(id); }
   function qs(sel, root){ return (root||document).querySelector(sel); }
@@ -1485,21 +1568,204 @@ body{padding-top:28px}
   }
 
   function cargarTPV(){
+    wireTPVOnce();
+    volverSalon();
+  }
+
+  function wireTPVOnce(){
+    if ($("tpvCobrar").dataset.wired) return;
+    $("tpvCobrar").dataset.wired = "1";
+    $("tpvCobrar").addEventListener("click", abrirCobroTPV);
+    $("tpvVaciar").addEventListener("click", function(){
+      if (!ticketActivo || !ticketActivo.lineas.length) return;
+      ticketActivo.lineas = [];
+      pintarTPVTicket();
+    });
+    $("tpvVolverSalon").addEventListener("click", volverSalon);
+    $("tpvPedirCuenta").addEventListener("click", togglePedirCuenta);
+    $("tpvBarraBtn").addEventListener("click", function(){ entrarMesa("barra", "Barra"); });
+    $("btnEditarSalon").addEventListener("click", function(){ toggleEditarSalon(true); });
+    $("btnSalonHecho").addEventListener("click", function(){ toggleEditarSalon(false); });
+    $("btnAnadirMesa").addEventListener("click", salonAnadirMesa);
+    $("btnAnadirPuerta").addEventListener("click", salonAnadirPuerta);
+  }
+
+  // =====================================================================
+  // SALÓN: plano de mesas. Vista por defecto del TPV — tocar una mesa abre
+  // (o retoma) su comanda; el modo edición permite añadir/mover/borrar
+  // mesas y accesorios arrastrando sobre el lienzo.
+  // =====================================================================
+  function estadoMesa(mesaId){
+    var t = DEMO.ticketsMesa[mesaId];
+    if (!t) return "libre";
+    if (t.estado === "cuenta_pedida") return "cuenta";
+    return t.lineas.length ? "ocupada" : "libre";
+  }
+
+  function volverSalon(){
+    mesaActiva = null;
+    ticketActivo = null;
+    $("tpvMesaPanel").hidden = true;
+    $("tpvSalonPanel").hidden = false;
+    pintarSalon();
+  }
+
+  function pintarSalon(){
+    var canvas = $("salonCanvas");
+    canvas.classList.toggle("editando", salonEditando);
+    canvas.innerHTML = DEMO.salon.map(function(el){
+      if (el.tipo === "mesa"){
+        var est = estadoMesa(el.id);
+        return '<div class="salon-mesa ' + el.altura + ' ' + el.tamano + ' ' + est + (salonEditando ? ' editando' : '') + '" ' +
+          'data-salon-id="' + esc(el.id) + '" style="left:' + el.x + '%; top:' + el.y + '%">' +
+          '<span>' + esc(el.nombre || "") + '</span>' +
+          '<span class="sub">' + (el.altura === "alta" ? "alta" : "baja") + '</span>' +
+          '</div>';
+      }
+      return '<div class="salon-accesorio' + (salonEditando ? ' editando' : '') + '" data-salon-id="' + esc(el.id) + '" ' +
+        'style="left:' + el.x + '%; top:' + el.y + '%" title="Puerta">🚪</div>';
+    }).join("");
+    qsa("[data-salon-id]", canvas).forEach(function(nodo){ wireSalonElemento(nodo); });
+    var barraEst = estadoMesa("barra");
+    $("tpvBarraEstado").textContent = barraEst === "cuenta" ? "Cuenta pedida" : (barraEst === "ocupada" ? "Ocupada" : "Libre");
+    $("tpvBarraEstado").style.color = barraEst === "cuenta" ? "var(--bad)" : (barraEst === "ocupada" ? "var(--warn)" : "var(--good)");
+  }
+
+  function toggleEditarSalon(on){
+    salonEditando = on;
+    $("salonPaleta").hidden = !on;
+    pintarSalon();
+  }
+
+  function salonAnadirMesa(){
+    var n = DEMO.salon.filter(function(e){ return e.tipo === "mesa"; }).length + 1;
+    DEMO.salon.push({ id: "m" + Date.now(), tipo: "mesa", altura: "baja", tamano: "pequena", nombre: String(n), x: 50, y: 50 });
+    guardarSalon();
+    pintarSalon();
+  }
+  function salonAnadirPuerta(){
+    DEMO.salon.push({ id: "o" + Date.now(), tipo: "puerta", nombre: "", x: 50, y: 10 });
+    guardarSalon();
+    pintarSalon();
+  }
+
+  // Tocar un elemento en modo normal entra en su comanda; en modo edición, lo arrastra (o,
+  // si no se movió, abre su ficha para renombrar/cambiar tamaño/borrar).
+  function wireSalonElemento(nodo){
+    var id = nodo.dataset.salonId;
+    var elemento = DEMO.salon.find(function(e){ return e.id === id; });
+    if (!elemento) return;
+
+    // Fuera de edición: un tap simple entra en la mesa (un listener de click normal y corriente,
+    // independiente del seguimiento de arrastre de abajo, que solo se activa en modo edición).
+    nodo.addEventListener("click", function(){
+      if (salonEditando) return;
+      if (elemento.tipo === "mesa") entrarMesa(elemento.id, "Mesa " + elemento.nombre);
+    });
+
+    function onPointerDown(ev){
+      if (!salonEditando) return;
+      ev.preventDefault();
+      var canvasRect = $("salonCanvas").getBoundingClientRect();
+      salonDrag = { elemento: elemento, canvasRect: canvasRect, moved: false, startX: ev.clientX, startY: ev.clientY };
+      nodo.setPointerCapture && ev.pointerId != null && nodo.setPointerCapture(ev.pointerId);
+    }
+    function onPointerMove(ev){
+      if (!salonDrag || salonDrag.elemento !== elemento) return;
+      var dx = ev.clientX - salonDrag.startX, dy = ev.clientY - salonDrag.startY;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) salonDrag.moved = true;
+      if (!salonDrag.moved) return;
+      var r = salonDrag.canvasRect;
+      var x = ((ev.clientX - r.left) / r.width) * 100;
+      var y = ((ev.clientY - r.top) / r.height) * 100;
+      elemento.x = Math.max(4, Math.min(96, x));
+      elemento.y = Math.max(4, Math.min(96, y));
+      nodo.style.left = elemento.x + "%";
+      nodo.style.top = elemento.y + "%";
+    }
+    function onPointerUp(){
+      if (!salonDrag || salonDrag.elemento !== elemento) return;
+      var huboMovimiento = salonDrag.moved;
+      salonDrag = null;
+      if (huboMovimiento){ guardarSalon(); return; }
+      abrirFichaSalonElemento(elemento);
+    }
+
+    nodo.addEventListener("pointerdown", onPointerDown);
+    nodo.addEventListener("pointermove", onPointerMove);
+    nodo.addEventListener("pointerup", onPointerUp);
+    nodo.addEventListener("pointercancel", function(){ salonDrag = null; });
+  }
+
+  function abrirFichaSalonElemento(elemento){
+    if (elemento.tipo !== "mesa"){
+      openModal("Puerta / accesorio");
+      $("modalBody").innerHTML = '<button class="btn danger" id="salonBorrar" type="button" style="width:100%">Quitar del plano</button>';
+      $("salonBorrar").addEventListener("click", function(){
+        DEMO.salon = DEMO.salon.filter(function(e){ return e.id !== elemento.id; });
+        guardarSalon(); closeModal(); pintarSalon();
+      });
+      return;
+    }
+    openModal("Editar mesa");
+    $("modalBody").innerHTML =
+      '<label>Nombre / número</label>' +
+      '<input type="text" id="salonMesaNombre" value="' + esc(elemento.nombre) + '" style="margin-bottom:12px">' +
+      '<label>Altura</label>' +
+      '<div class="row" style="gap:8px; margin-bottom:12px">' +
+        '<button type="button" class="btn' + (elemento.altura === "baja" ? " primary" : "") + '" id="salonAltaBaja" style="flex:1">Baja</button>' +
+        '<button type="button" class="btn' + (elemento.altura === "alta" ? " primary" : "") + '" id="salonAltaAlta" style="flex:1">Alta</button>' +
+      '</div>' +
+      '<label>Tamaño</label>' +
+      '<div class="row" style="gap:8px; margin-bottom:16px">' +
+        '<button type="button" class="btn' + (elemento.tamano === "pequena" ? " primary" : "") + '" id="salonTamPeq" style="flex:1">Pequeña</button>' +
+        '<button type="button" class="btn' + (elemento.tamano === "grande" ? " primary" : "") + '" id="salonTamGra" style="flex:1">Grande</button>' +
+      '</div>' +
+      '<button class="btn primary" id="salonGuardar" type="button" style="width:100%; margin-bottom:8px">Guardar</button>' +
+      '<button class="btn danger" id="salonBorrar" type="button" style="width:100%">Quitar mesa del plano</button>';
+    $("salonAltaBaja").addEventListener("click", function(){ elemento.altura = "baja"; abrirFichaSalonElemento(elemento); });
+    $("salonAltaAlta").addEventListener("click", function(){ elemento.altura = "alta"; abrirFichaSalonElemento(elemento); });
+    $("salonTamPeq").addEventListener("click", function(){ elemento.tamano = "pequena"; abrirFichaSalonElemento(elemento); });
+    $("salonTamGra").addEventListener("click", function(){ elemento.tamano = "grande"; abrirFichaSalonElemento(elemento); });
+    $("salonGuardar").addEventListener("click", function(){
+      elemento.nombre = $("salonMesaNombre").value.trim() || elemento.nombre;
+      guardarSalon(); closeModal(); pintarSalon();
+    });
+    $("salonBorrar").addEventListener("click", function(){
+      if (DEMO.ticketsMesa[elemento.id] && DEMO.ticketsMesa[elemento.id].lineas.length){
+        toast("Esta mesa tiene una comanda abierta. Cóbrala antes de quitarla del plano.", "err");
+        return;
+      }
+      DEMO.salon = DEMO.salon.filter(function(e){ return e.id !== elemento.id; });
+      delete DEMO.ticketsMesa[elemento.id];
+      guardarSalon(); closeModal(); pintarSalon();
+    });
+  }
+
+  // ---- Entrar en la comanda de una mesa (o la barra): si no tenía ticket abierto, se abre uno
+  // nuevo con su propio número correlativo; si ya tenía, se retoma tal cual se dejó. ----
+  function entrarMesa(mesaId, etiqueta){
+    if (!DEMO.ticketsMesa[mesaId]){
+      DEMO.ticketsMesa[mesaId] = { numero: tpvConsumirNumero(), lineas: [], estado: "abierta", etiqueta: etiqueta };
+    }
+    mesaActiva = mesaId;
+    ticketActivo = DEMO.ticketsMesa[mesaId];
+    $("tpvSalonPanel").hidden = true;
+    $("tpvMesaPanel").hidden = false;
     if (!tpvFamiliaActiva || familiasConPlatos().indexOf(tpvFamiliaActiva) === -1){
       tpvFamiliaActiva = familiasConPlatos()[0] || null;
     }
     pintarTPVFamilias();
     pintarTPVGrid();
     pintarTPVTicket();
-    if (!$("tpvCobrar").dataset.wired){
-      $("tpvCobrar").dataset.wired = "1";
-      $("tpvCobrar").addEventListener("click", abrirCobroTPV);
-      $("tpvVaciar").addEventListener("click", function(){
-        if (!tpvTicket.length) return;
-        tpvTicket = [];
-        pintarTPVTicket();
-      });
-    }
+  }
+
+  function togglePedirCuenta(){
+    if (!ticketActivo) return;
+    if (!ticketActivo.lineas.length){ toast("Esta mesa todavía no tiene nada pedido.", "err"); return; }
+    ticketActivo.estado = ticketActivo.estado === "cuenta_pedida" ? "abierta" : "cuenta_pedida";
+    pintarTPVTicket();
+    toast(ticketActivo.estado === "cuenta_pedida" ? "Cuenta pedida — la mesa se marca en el plano." : "Cuenta cancelada.", "ok");
   }
 
   function pintarTPVFamilias(){
@@ -1544,12 +1810,13 @@ body{padding-top:28px}
   }
 
   function tpvAnadir(platoId){
+    if (!ticketActivo) return;
     var plato = DEMO.platos.find(function(p){ return p.id === platoId; });
     if (!plato) return;
     var precio = precioTPVPlato(plato) || 0;
-    var linea = tpvTicket.find(function(l){ return l.platoId === platoId; });
+    var linea = ticketActivo.lineas.find(function(l){ return l.platoId === platoId; });
     if (linea) linea.cantidad += 1;
-    else tpvTicket.push({ platoId: platoId, nombre: plato.nombre, precio: precio, cantidad: 1, iva: ivaTPVPlato(plato) });
+    else ticketActivo.lineas.push({ platoId: platoId, nombre: plato.nombre, precio: precio, cantidad: 1, iva: ivaTPVPlato(plato) });
     pintarTPVTicket();
   }
 
@@ -1597,15 +1864,18 @@ body{padding-top:28px}
   }
 
   function tpvTotal(){
-    return tpvTicket.reduce(function(s,l){ return s + l.precio*l.cantidad; }, 0);
+    if (!ticketActivo) return 0;
+    return ticketActivo.lineas.reduce(function(s,l){ return s + l.precio*l.cantidad; }, 0);
   }
 
   function pintarTPVTicket(){
+    if (!ticketActivo) return;
     var box = $("tpvTicketLines");
-    if (!tpvTicket.length){
-      box.innerHTML = '<div class="empty">Toca un plato para añadirlo.</div>';
+    var lineas = ticketActivo.lineas;
+    if (!lineas.length){
+      box.innerHTML = '<div class="empty">Mesa vacía. Toca un plato del catálogo para empezar.</div>';
     } else {
-      box.innerHTML = tpvTicket.map(function(l, i){
+      box.innerHTML = lineas.map(function(l, i){
         return '<div class="tpv-line">' +
           '<span class="nom">'+esc(l.nombre)+'</span>' +
           '<div class="tpv-qtybox">' +
@@ -1617,68 +1887,107 @@ body{padding-top:28px}
         '</div>';
       }).join("");
       qsa("[data-tpv-mas]", box).forEach(function(b){
-        b.addEventListener("click", function(){ tpvTicket[+b.dataset.tpvMas].cantidad++; pintarTPVTicket(); });
+        b.addEventListener("click", function(){ lineas[+b.dataset.tpvMas].cantidad++; pintarTPVTicket(); });
       });
       qsa("[data-tpv-menos]", box).forEach(function(b){
         b.addEventListener("click", function(){
           var i = +b.dataset.tpvMenos;
-          tpvTicket[i].cantidad--;
-          if (tpvTicket[i].cantidad <= 0) tpvTicket.splice(i,1);
+          lineas[i].cantidad--;
+          if (lineas[i].cantidad <= 0) lineas.splice(i,1);
           pintarTPVTicket();
         });
       });
     }
     $("tpvTotal").textContent = eur(tpvTotal());
     var tramos = $("tpvIvaDesglose");
-    if (tramos) tramos.innerHTML = tpvTicket.length ? tpvDesgloseHtml(tpvDesgloseIVA(tpvTicket)) : "";
+    if (tramos) tramos.innerHTML = lineas.length ? tpvDesgloseHtml(tpvDesgloseIVA(lineas)) : "";
     var numEl = $("tpvNumeroTicket");
-    if (numEl) numEl.textContent = "Ticket #" + tpvProximoNumero();
+    if (numEl) numEl.textContent = "Ticket #" + ticketActivo.numero + (ticketActivo.etiqueta ? " · " + ticketActivo.etiqueta : "");
+    var cuentaBtn = $("tpvPedirCuenta");
+    if (cuentaBtn){
+      var pedida = ticketActivo.estado === "cuenta_pedida";
+      cuentaBtn.textContent = pedida ? "🧾 Cuenta ✓" : "🧾 Cuenta";
+    }
   }
 
   function abrirCobroTPV(){
-    if (!tpvTicket.length){ toast("Añade algún plato antes de cobrar.", "err"); return; }
+    if (!ticketActivo || !ticketActivo.lineas.length){ toast("Añade algún plato antes de cobrar.", "err"); return; }
+    var lineas = ticketActivo.lineas;
     var total = tpvTotal();
-    var tramos = tpvDesgloseIVA(tpvTicket);
-    openModal("Cobrar · Ticket #" + tpvProximoNumero());
+    var tramos = tpvDesgloseIVA(lineas);
+    var numero = ticketActivo.numero;
+    var mesaId = mesaActiva;
+    openModal("Cobrar · Ticket #" + numero);
     $("modalBody").innerHTML =
       '<div class="card tight" style="margin-bottom:14px">' +
         '<div class="row between"><span class="txt" style="margin:0">Total</span>' +
           '<span class="txt" style="margin:0; font-size:1.3rem; font-weight:800">'+eur(total)+'</span></div>' +
         '<div style="margin-top:6px">'+tpvDesgloseHtml(tramos)+'</div>' +
       '</div>' +
-      '<div class="row" style="gap:10px">' +
+      '<div class="row" style="gap:10px" id="cobroMetodoUnico">' +
         '<button class="btn primary" id="tpvPagarEfectivo" type="button" style="flex:1; padding:18px 0">💶 Efectivo</button>' +
         '<button class="btn primary" id="tpvPagarTarjeta" type="button" style="flex:1; padding:18px 0">💳 Tarjeta</button>' +
+      '</div>' +
+      '<button class="btn" id="tpvDividirPago" type="button" style="width:100%; margin-top:10px">🔀 Dividir pago (efectivo + tarjeta)</button>' +
+      '<div id="cobroMixto" hidden style="margin-top:12px">' +
+        '<div class="row" style="gap:8px">' +
+          '<div style="flex:1"><label>💶 Efectivo</label><input type="number" step="0.01" min="0" id="cobroEfectivoInput" placeholder="0,00"></div>' +
+          '<div style="flex:1"><label>💳 Tarjeta</label><input type="number" step="0.01" min="0" id="cobroTarjetaInput" placeholder="0,00"></div>' +
+        '</div>' +
+        '<div class="row between" style="margin-top:8px"><span class="meta" style="margin:0">Pendiente</span><span class="meta" id="cobroPendiente" style="margin:0">'+eur(total)+'</span></div>' +
+        '<button class="btn primary" id="tpvPagarMixto" type="button" style="width:100%; margin-top:10px" disabled>Cobrar</button>' +
       '</div>';
 
-    function cobrar(metodo){
+    function cerrarYCobrar(metodo, desglosePago){
       var hoy = new Date().toISOString().slice(0,10);
       var id = "tpv-v" + Date.now();
-      var numeroTicket = tpvConsumirNumero();
       var nuevaVenta = {
         id: id,
-        numero: "Ticket #" + numeroTicket,
+        numero: "Ticket #" + numero,
         fecha: hoy,
         total: total,
         estado: "confirmada",
         tipo_documento: "tpv",
         metodo_pago: metodo,
+        pagoDesglose: desglosePago || null,
         desgloseIVA: tramos
       };
       DEMO.ventas.unshift(nuevaVenta);
-      DEMO.ventaLineas[id] = tpvTicket.map(function(l){
+      DEMO.ventaLineas[id] = lineas.map(function(l){
         return { id: "vl-tpv-"+Date.now()+Math.random(), plato_id: l.platoId, nombre: l.nombre, cantidad: l.cantidad, precio_unitario: l.precio, iva: l.iva };
       });
       sb.rpc("confirmar_venta", { p_venta: id }).then(function(){
-        toast("Ticket #"+numeroTicket+" cobrado: "+eur(total)+" ("+(metodo==="efectivo"?"efectivo":"tarjeta")+"). Stock actualizado.", "ok");
-        tpvTicket = [];
-        pintarTPVTicket();
+        var metodoTxt = metodo === "mixto" ? "pago mixto" : (metodo === "efectivo" ? "efectivo" : "tarjeta");
+        toast("Ticket #"+numero+" cobrado: "+eur(total)+" ("+metodoTxt+"). Stock actualizado.", "ok");
+        delete DEMO.ticketsMesa[mesaId];
         closeModal();
+        volverSalon();
         if (state.view === "ventas") cargarVentas();
       });
     }
-    $("tpvPagarEfectivo").addEventListener("click", function(){ cobrar("efectivo"); });
-    $("tpvPagarTarjeta").addEventListener("click", function(){ cobrar("tarjeta"); });
+
+    $("tpvPagarEfectivo").addEventListener("click", function(){ cerrarYCobrar("efectivo", null); });
+    $("tpvPagarTarjeta").addEventListener("click", function(){ cerrarYCobrar("tarjeta", null); });
+    $("tpvDividirPago").addEventListener("click", function(){
+      $("cobroMetodoUnico").hidden = true;
+      $("tpvDividirPago").hidden = true;
+      $("cobroMixto").hidden = false;
+      $("cobroEfectivoInput").focus();
+    });
+    function recalcPendiente(){
+      var ef = parseFloat($("cobroEfectivoInput").value) || 0;
+      var ta = parseFloat($("cobroTarjetaInput").value) || 0;
+      var pendiente = total - ef - ta;
+      $("cobroPendiente").textContent = eur(Math.abs(pendiente) < 0.005 ? 0 : pendiente);
+      $("tpvPagarMixto").disabled = Math.abs(pendiente) >= 0.005;
+    }
+    $("cobroEfectivoInput").addEventListener("input", recalcPendiente);
+    $("cobroTarjetaInput").addEventListener("input", recalcPendiente);
+    $("tpvPagarMixto").addEventListener("click", function(){
+      var ef = parseFloat($("cobroEfectivoInput").value) || 0;
+      var ta = parseFloat($("cobroTarjetaInput").value) || 0;
+      cerrarYCobrar("mixto", { efectivo: ef, tarjeta: ta });
+    });
   }
 
   // ---------- INFORMES: catálogo de informes con parámetros y resultado ----------
@@ -3457,8 +3766,7 @@ body{padding-top:28px}
       '<label>Nombre</label>' +
       '<input type="text" id="nuevoPlatoNombre" placeholder="Ej. Ensalada César" style="margin-bottom:12px">' +
       '<label>Familia (dónde aparece en el TPV)</label>' +
-      '<input type="text" id="nuevoPlatoFamilia" list="nuevoPlatoFamiliaLista" placeholder="Ej. Comida" value="'+esc(tpvFamiliaActiva||"")+'" style="margin-bottom:12px">' +
-      '<datalist id="nuevoPlatoFamiliaLista">' + FAMILIAS_SUGERIDAS.map(function(f){ return '<option value="'+esc(f)+'">'; }).join("") + '</datalist>' +
+      '<input type="text" id="nuevoPlatoFamilia" placeholder="Ej. Comida" value="'+esc(tpvFamiliaActiva||"")+'" style="margin-bottom:12px">' +
       '<div class="row" style="gap:8px; margin-bottom:12px">' +
         '<div style="flex:1"><label>Precio de venta</label><input type="number" step="0.01" min="0" id="nuevoPlatoPvp" placeholder="0,00"></div>' +
         '<div style="flex:1"><label>IVA</label>' +
@@ -3482,6 +3790,10 @@ body{padding-top:28px}
       '</div>' +
       '<button class="btn primary" id="guardarNuevoPlato" type="button" style="width:100%">Crear plato</button>';
     setTimeout(function(){ $("nuevoPlatoNombre").focus(); }, 50);
+    wireAutocomplete($("nuevoPlatoFamilia"), function(){
+      var existentes = familiasConPlatos();
+      return existentes.concat(FAMILIAS_SUGERIDAS.filter(function(f){ return existentes.indexOf(f) === -1; }));
+    }, []);
     wireAutocomplete($("nuevoPlatoBaseNombre"), function(){ return DEMO.inventario.map(function(p){ return p.nombre; }); }, []);
     $("nuevoPlatoCombinable").addEventListener("change", function(){
       $("nuevoPlatoBaseBox").hidden = !this.checked;
@@ -3520,7 +3832,14 @@ body{padding-top:28px}
       if (origen === "tpv"){
         tpvFamiliaActiva = familia;
         closeModal();
-        cargarTPV();
+        // Si se creó desde dentro de una mesa, seguimos en su comanda (no perdemos el sitio);
+        // si se creó desde el plano (p.ej. aún sin mesa elegida), cargarTPV ya nos deja en él.
+        if (ticketActivo){
+          pintarTPVFamilias();
+          pintarTPVGrid();
+        } else {
+          cargarTPV();
+        }
       } else {
         pintarPlatosLista($("platosBuscar") ? $("platosBuscar").value : "");
         abrirFichaPlato(nuevo.id);
