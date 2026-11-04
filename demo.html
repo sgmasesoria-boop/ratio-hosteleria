@@ -711,10 +711,24 @@ body{padding-top:28px}
     // cual, se pregunta con qué se toma (ver tpvAnadirCombinado) — así no hay que dar de alta
     // un plato distinto por cada pareja posible de copa + refresco.
     platos: [
-      { id: "pl3", nombre: "Caña Alhambra", familia: "Bebidas", pvp: 2.40, iva: 10 },
-      { id: "pl5", nombre: "Coca-Cola", familia: "Bebidas", pvp: 2.20, iva: 10, esRefresco: true },
-      { id: "pl9", nombre: "Tónica", familia: "Bebidas", pvp: 2.20, iva: 10, esRefresco: true },
-      { id: "pl10", nombre: "Fanta Naranja", familia: "Bebidas", pvp: 2.20, iva: 10, esRefresco: true },
+      // Bebidas (sin contar vinos, que van aparte): orden fijo pedido por Sergio — primero la
+      // cerveza, luego los refrescos empezando por Coca-Cola, luego los zumos. "icono" es un
+      // simple símbolo genérico de la categoría/sabor (no el logo real de la marca: reproducir
+      // un logotipo registrado no es algo que podamos hacer aquí) — los que no tienen marca se
+      // quedan solo con el texto.
+      { id: "pl3", nombre: "1/5 Amstel", familia: "Bebidas", pvp: 2.00, iva: 10, orden: 1, icono: "🍺" },
+      { id: "pl5", nombre: "1/3 Amstel", familia: "Bebidas", pvp: 2.60, iva: 10, orden: 2, icono: "🍺" },
+      { id: "pl9", nombre: "Coca-Cola", familia: "Bebidas", pvp: 2.50, iva: 10, esRefresco: true, orden: 3, icono: "🥤" },
+      { id: "pl10", nombre: "Fanta naranja", familia: "Bebidas", pvp: 2.50, iva: 10, esRefresco: true, orden: 4, icono: "🍊" },
+      { id: "pl47", nombre: "Fanta limón", familia: "Bebidas", pvp: 2.50, iva: 10, esRefresco: true, orden: 5, icono: "🍋" },
+      { id: "pl48", nombre: "Aquarius naranja", familia: "Bebidas", pvp: 2.50, iva: 10, esRefresco: true, orden: 6, icono: "🍊" },
+      { id: "pl49", nombre: "Aquarius limón", familia: "Bebidas", pvp: 2.50, iva: 10, esRefresco: true, orden: 7, icono: "🍋" },
+      { id: "pl50", nombre: "Nestea", familia: "Bebidas", pvp: 2.50, iva: 10, esRefresco: true, orden: 8, icono: "🍵" },
+      { id: "pl51", nombre: "Pepsi cola", familia: "Bebidas", pvp: 2.50, iva: 10, esRefresco: true, orden: 9, icono: "🥤" },
+      { id: "pl52", nombre: "Seven up", familia: "Bebidas", pvp: 2.50, iva: 10, esRefresco: true, orden: 10, icono: "🍋" },
+      { id: "pl53", nombre: "Coca-Cola zero", familia: "Bebidas", pvp: 2.50, iva: 10, esRefresco: true, orden: 11, icono: "🥤" },
+      { id: "pl54", nombre: "Zumo de melocotón", familia: "Bebidas", pvp: 2.80, iva: 10, orden: 12 },
+      { id: "pl55", nombre: "Zumo de piña", familia: "Bebidas", pvp: 2.80, iva: 10, orden: 13 },
       // IVA 10% también para los combinados: servido en barra/mesa es "servicio de hostelería"
       // (art. 91.Uno.2.2º Ley 37/1992 del IVA), que tributa como UNA prestación única al 10%,
       // alcohol incluido. El 21% solo aplicaría a la venta de alcohol SIN servicio (p.ej. una
@@ -2074,11 +2088,18 @@ body{padding-top:28px}
     var items = DEMO.platos
       .filter(function(p){ return (p.familia || "Sin categoría") === tpvFamiliaActiva; })
       .slice()
-      .sort(function(a,b){ return norm(a.nombre) < norm(b.nombre) ? -1 : 1; });
+      .sort(function(a,b){
+        // Si el plato tiene "orden" (p.ej. cerveza antes que refrescos en Bebidas), manda eso;
+        // si no, orden alfabético de siempre.
+        var oa = (typeof a.orden === "number") ? a.orden : 999;
+        var ob = (typeof b.orden === "number") ? b.orden : 999;
+        if (oa !== ob) return oa - ob;
+        return norm(a.nombre) < norm(b.nombre) ? -1 : 1;
+      });
     var html = items.map(function(p){
       var precio = precioTPVPlato(p);
       return '<div class="tpv-tile" data-tpv-add="'+p.id+'">' +
-        '<div class="nom">'+esc(p.nombre)+(p.combinable?' <span class="meta" style="margin:0">↳</span>':'')+'</div>' +
+        '<div class="nom">'+(p.icono?esc(p.icono)+' ':'')+esc(p.nombre)+(p.combinable?' <span class="meta" style="margin:0">↳</span>':'')+'</div>' +
         '<div class="precio">'+(precio!=null?eur(precio)+(p.combinable?" desde":""):"sin precio")+'</div>' +
       '</div>';
     }).join("");
