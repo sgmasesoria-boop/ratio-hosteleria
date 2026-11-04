@@ -1,37 +1,40 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Ratio Hostelería · Demo</title>
+<title>Orenes · TPV</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 html,body{overflow-x:hidden}
-body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}
+body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#0c0f0a;color:#f4f6ef}
 img{max-width:100%}
 [hidden]:not([hidden=until-found i]){display:none!important}
 /* Layout concept: phone-shaped single-page app. Sticky header with the business
    name and a live status dot, scrolling content, bottom tab bar — built to be
    used one-handed at the delivery dock, ticket in one hand, phone in the other. */
+/* Marca de Orenes Sports Bar & Salas de Juego: fondo negro, acento verde lima, texto claro —
+   igual en modo claro y oscuro (es la identidad del negocio, no debería cambiar con el tema del
+   teléfono). Sustituye a la paleta tostada genérica del demo. */
 :root{
-  --bg:#f3efe6; --surface:#ffffff; --surface-2:#ece5d4; --fg:#20231e; --muted:#6b6a5e;
-  --border:#d9d2bd; --accent:#b8860f; --accent-ink:#2a1e02;
-  --good:#2f7a4f; --good-bg:#e4f0e4; --warn:#a9631b; --warn-bg:#f5e6cf; --bad:#b23a3a; --bad-bg:#f6e0df;
-  --focus:#1f6e5c;
+  --bg:#0c0f0a; --surface:#161b13; --surface-2:#202a1b; --fg:#f4f6ef; --muted:#9ba699;
+  --border:#2b3626; --accent:#8dc63f; --accent-ink:#0f1a06;
+  --good:#8dc63f; --good-bg:#1c2a14; --warn:#e3a856; --warn-bg:#352a13; --bad:#e85c4f; --bad-bg:#3a1a16;
+  --focus:#8dc63f;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#13201c; --surface:#192a24; --surface-2:#1f352d; --fg:#eef1e8; --muted:#9aa89a;
-    --border:#2c4038; --accent:#e0a93a; --accent-ink:#1b1200;
-    --good:#5ec989; --good-bg:#1d3327; --warn:#e3a856; --warn-bg:#3a2d17; --bad:#e8847b; --bad-bg:#3a2320;
-    --focus:#5ec9ab;
+    --bg:#0c0f0a; --surface:#161b13; --surface-2:#202a1b; --fg:#f4f6ef; --muted:#9ba699;
+    --border:#2b3626; --accent:#8dc63f; --accent-ink:#0f1a06;
+    --good:#8dc63f; --good-bg:#1c2a14; --warn:#e3a856; --warn-bg:#352a13; --bad:#e85c4f; --bad-bg:#3a1a16;
+    --focus:#8dc63f;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#13201c; --surface:#192a24; --surface-2:#1f352d; --fg:#eef1e8; --muted:#9aa89a;
-  --border:#2c4038; --accent:#e0a93a; --accent-ink:#1b1200;
-  --good:#5ec989; --good-bg:#1d3327; --warn:#e3a856; --warn-bg:#3a2d17; --bad:#e8847b; --bad-bg:#3a2320;
-  --focus:#5ec9ab;
+  --bg:#0c0f0a; --surface:#161b13; --surface-2:#202a1b; --fg:#f4f6ef; --muted:#9ba699;
+  --border:#2b3626; --accent:#8dc63f; --accent-ink:#0f1a06;
+  --good:#8dc63f; --good-bg:#1c2a14; --warn:#e3a856; --warn-bg:#352a13; --bad:#e85c4f; --bad-bg:#3a1a16;
+  --focus:#8dc63f;
   color-scheme: dark;
 }
 *{box-sizing:border-box}
@@ -55,8 +58,10 @@ header.top{
   background:var(--surface); border-bottom:1px solid var(--border);
   padding:14px 0 12px; display:flex; align-items:center; gap:10px; justify-content:space-between;
 }
-header.top .brand{display:flex; align-items:baseline; gap:8px; min-width:0}
-header.top .brand b{font-size:1.05rem; font-weight:800; letter-spacing:-.01em; white-space:nowrap}
+header.top .brand{display:flex; align-items:baseline; gap:8px; min-width:0; flex:1; overflow:hidden}
+header.top > .row{flex:none}
+header.top .brand b{font-size:1.05rem; font-weight:800; letter-spacing:-.01em; white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis}
 header.top .neg{color:var(--muted); font-size:.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--good);flex:none}
 .dot.off{background:var(--muted)}
@@ -332,8 +337,8 @@ body{padding-top:28px}
 <div id="app">
 
   <section id="loginView" class="view active" style="padding:14vh 0 40px">
-    <div class="logo">Ratio <span class="dot2">Hostelería</span></div>
-    <p class="lead">Control de escandallos, compras y ventas.</p>
+    <div class="logo">ORENES<span class="dot2">.</span></div>
+    <p class="lead">Sports Bar &amp; Salas de Juego — gestión de sala, TPV y escandallos.</p>
     <div class="authtabs">
       <button id="tabIn" class="active" type="button">Entrar</button>
       <button id="tabUp" type="button">Crear cuenta</button>
@@ -608,7 +613,7 @@ body{padding-top:28px}
   function wait(v, ms){ return new Promise(function(res){ setTimeout(function(){ res(v); }, ms==null?180:ms); }); }
 
   var DEMO = {
-    negocio: { id: "demo-negocio", nombre: "Bar de Pruebas (demo)", licencia_estado: "activa", max_usuarios: 3 },
+    negocio: { id: "demo-negocio", nombre: "Orenes Sports Bar & Salas de Juego", licencia_estado: "activa", max_usuarios: 3 },
     subidas: [
       { nombre: "Gambas blancas congeladas", proveedorAnterior: "Pescados Costa Tropical", proveedorActual: "Pescados Costa Tropical", precioAnterior: 13.10, precioActual: 14.90, subida_pct: 14, impacto_90d_eur: 186.40 },
       { nombre: "Jamón ibérico de bellota", proveedorAnterior: "Distribuciones Hosteleras Granada SL", proveedorActual: "Distribuciones Hosteleras Granada SL", precioAnterior: 18.40, precioActual: 20.10, subida_pct: 9, impacto_90d_eur: 142.10 },
@@ -649,9 +654,9 @@ body{padding-top:28px}
     // las mermas por FIFO.
     movimientos: {
       "Gambas blancas": [
-        { fecha: "2026-10-15", tipo: "entrada", cantidad: 4, precio: 13.10, origen: "Compra · Distribuciones Hosteleras Granada SL", origenCompraId: "c1" },
+        { fecha: "2026-10-15", tipo: "entrada", cantidad: 4, precio: 13.10, origen: "Compra · Distribuciones Hosteleras Granada SL" },
         { fecha: "2026-10-18", tipo: "salida", cantidad: 1.5, precio: 24.90, origen: "Venta · Ticket Z" },
-        { fecha: "2026-10-22", tipo: "entrada", cantidad: 2, precio: 14.90, origen: "Compra · Pescados Costa Tropical", origenCompraId: "c2" },
+        { fecha: "2026-10-22", tipo: "entrada", cantidad: 2, precio: 14.90, origen: "Compra · Pescados Costa Tropical" },
         { fecha: "2026-10-26", tipo: "salida", cantidad: 1, precio: 24.90, origen: "Venta · Ticket Z" }
       ],
       "Jamón ibérico": [
@@ -659,11 +664,11 @@ body{padding-top:28px}
         { fecha: "2026-10-19", tipo: "salida", cantidad: 0.8, precio: 58.00, origen: "Venta · Ticket Z" }
       ],
       "Patatas": [
-        { fecha: "2026-10-15", tipo: "entrada", cantidad: 25, precio: 1.10, origen: "Compra · Distribuciones Hosteleras Granada SL", origenCompraId: "c1" },
+        { fecha: "2026-10-15", tipo: "entrada", cantidad: 25, precio: 1.10, origen: "Compra · Distribuciones Hosteleras Granada SL" },
         { fecha: "2026-10-20", tipo: "salida", cantidad: 9, precio: 3.50, origen: "Venta · Ticket Z" }
       ],
       "Aceite de oliva": [
-        { fecha: "2026-10-15", tipo: "entrada", cantidad: 10, precio: 4.10, origen: "Compra · Distribuciones Hosteleras Granada SL", origenCompraId: "c1" }
+        { fecha: "2026-10-15", tipo: "entrada", cantidad: 10, precio: 4.10, origen: "Compra · Distribuciones Hosteleras Granada SL" }
       ],
       "Cerveza de barril": [
         { fecha: "2026-10-15", tipo: "entrada", cantidad: 2, precio: 81.90, origen: "Compra · Bebidas Alpujarra" },
@@ -706,10 +711,7 @@ body{padding-top:28px}
     // cual, se pregunta con qué se toma (ver tpvAnadirCombinado) — así no hay que dar de alta
     // un plato distinto por cada pareja posible de copa + refresco.
     platos: [
-      { id: "pl1", nombre: "Hamburguesa Casa", familia: "Comida", pvp: 11.50, iva: 10 },
-      { id: "pl2", nombre: "Ensaladilla Rusa", familia: "Comida", pvp: 6.50, iva: 10 },
       { id: "pl3", nombre: "Caña Alhambra", familia: "Bebidas", pvp: 2.40, iva: 10 },
-      { id: "pl4", nombre: "Ración de Jamón", familia: "Comida", pvp: 14.00, iva: 10 },
       { id: "pl5", nombre: "Coca-Cola", familia: "Bebidas", pvp: 2.20, iva: 10, esRefresco: true },
       { id: "pl9", nombre: "Tónica", familia: "Bebidas", pvp: 2.20, iva: 10, esRefresco: true },
       { id: "pl10", nombre: "Fanta Naranja", familia: "Bebidas", pvp: 2.20, iva: 10, esRefresco: true },
@@ -719,7 +721,57 @@ body{padding-top:28px}
       // botella para llevar), caso que este TPV no contempla todavía.
       { id: "pl6", nombre: "Whisky", familia: "Combinados", pvp: 6.00, iva: 10, combinable: true, ingredienteBaseId: "i6", cantidadBase: 4, unidadBase: "cl" },
       { id: "pl7", nombre: "Ron", familia: "Combinados", pvp: 6.00, iva: 10, combinable: true, ingredienteBaseId: "i8", cantidadBase: 4, unidadBase: "cl" },
-      { id: "pl8", nombre: "Ginebra", familia: "Combinados", pvp: 6.50, iva: 10, combinable: true, ingredienteBaseId: "i9", cantidadBase: 4, unidadBase: "cl" }
+      { id: "pl8", nombre: "Ginebra", familia: "Combinados", pvp: 6.50, iva: 10, combinable: true, ingredienteBaseId: "i9", cantidadBase: 4, unidadBase: "cl" },
+
+      // ---- Carta real de Orenes (carta "Las Latitas de Orenes") ----------------------------
+      // Dados de alta sin escandallo todavía (el ticket no trae recetas ni costes de
+      // ingrediente): aparecen en el TPV listos para vender, y su coste/margen se puede
+      // completar cuando se quiera desde Artículos/Almacén → Platos.
+      // En Lata
+      { id: "pl11", nombre: "Mejillones en escabeche · Balea", familia: "En Lata", pvp: 10.00, iva: 10 },
+      { id: "pl12", nombre: "Mejillones al vermú · La Curiosa", familia: "En Lata", pvp: 14.00, iva: 10 },
+      { id: "pl13", nombre: "Chipirones en su tinta · La Curiosa", familia: "En Lata", pvp: 11.00, iva: 10 },
+      { id: "pl14", nombre: "Pulpo a la gallega · La Curiosa", familia: "En Lata", pvp: 15.00, iva: 10 },
+      { id: "pl15", nombre: "Anchoa a la trufa blanca", familia: "En Lata", pvp: 19.00, iva: 10 },
+      { id: "pl16", nombre: "Anchoa con mantequilla de vaca", familia: "En Lata", pvp: 19.00, iva: 10 },
+      { id: "pl17", nombre: "Anchoas del Cantábrico", familia: "En Lata", pvp: 10.00, iva: 10 },
+      { id: "pl18", nombre: "Berberechos al natural (Galicia)", familia: "En Lata", pvp: 10.00, iva: 10 },
+      // Gildas
+      { id: "pl19", nombre: "Gilda macerada en vermú · Pico Fino", familia: "Gildas", pvp: 2.50, iva: 10 },
+      { id: "pl20", nombre: "Gilda de cecina y queso", familia: "Gildas", pvp: 4.00, iva: 10 },
+      // Queso y AOVE
+      { id: "pl21", nombre: "Queso en aceite", familia: "Queso y AOVE", pvp: 4.00, iva: 10 },
+      { id: "pl22", nombre: "Cata de aceite de la mejor selección (P/P)", familia: "Queso y AOVE", pvp: 2.00, iva: 10 },
+      // Jamón y Loncheados
+      { id: "pl23", nombre: "Jamón de bellota 100% ibérico", familia: "Jamón y Loncheados", pvp: 22.00, iva: 10 },
+      { id: "pl24", nombre: "Caña de lomo de bellota 50% raza ibérica", familia: "Jamón y Loncheados", pvp: 14.00, iva: 10 },
+      { id: "pl25", nombre: "Cecina de vaca", familia: "Jamón y Loncheados", pvp: 8.00, iva: 10 },
+      { id: "pl26", nombre: "Tapa chorizo Joselito", familia: "Jamón y Loncheados", pvp: 4.50, iva: 10 },
+      { id: "pl27", nombre: "Tapa salchichón Joselito", familia: "Jamón y Loncheados", pvp: 4.50, iva: 10 },
+      { id: "pl28", nombre: "Chorizo Joselito (plato)", familia: "Jamón y Loncheados", pvp: 20.00, iva: 10 },
+      { id: "pl29", nombre: "Salchichón Joselito (plato)", familia: "Jamón y Loncheados", pvp: 20.00, iva: 10 },
+      // Elaborados
+      { id: "pl30", nombre: "Paté de la Curiosa con pimientos del piquillo", familia: "Elaborados", pvp: 10.00, iva: 10 },
+      { id: "pl31", nombre: "Alcachofas con jamón", familia: "Elaborados", pvp: 8.00, iva: 10 },
+      { id: "pl32", nombre: "Rabo de toro", familia: "Elaborados", pvp: 19.00, iva: 10 },
+      { id: "pl33", nombre: "Solomillo al whisky", familia: "Elaborados", pvp: 19.00, iva: 10 },
+      { id: "pl34", nombre: "Tartar de atún", familia: "Elaborados", pvp: 13.00, iva: 10 },
+      // Vinos: son bebida, no comida — igual que el resto de la carta de bebidas, van a la
+      // familia "Bebidas" (junto con cañas, combinados y refrescos que ya tenéis dados de
+      // alta), no a ninguna familia de comida. Copa y botella quedan como dos artículos
+      // distintos porque cada uno tiene su propio precio.
+      { id: "pl35", nombre: "Rioja crianza (copa)", familia: "Bebidas", pvp: 2.50, iva: 10 },
+      { id: "pl36", nombre: "Rioja crianza (botella)", familia: "Bebidas", pvp: 16.00, iva: 10 },
+      { id: "pl37", nombre: "Ribera del Duero (copa)", familia: "Bebidas", pvp: 2.50, iva: 10 },
+      { id: "pl38", nombre: "Ribera del Duero (botella)", familia: "Bebidas", pvp: 16.00, iva: 10 },
+      { id: "pl39", nombre: "Manzanilla de San Lúcar (copa)", familia: "Bebidas", pvp: 3.00, iva: 10 },
+      { id: "pl40", nombre: "Manzanilla de San Lúcar (botella)", familia: "Bebidas", pvp: 16.00, iva: 10 },
+      { id: "pl41", nombre: "Blanco del Condado de Huelva (copa)", familia: "Bebidas", pvp: 3.00, iva: 10 },
+      { id: "pl42", nombre: "Blanco del Condado de Huelva (botella)", familia: "Bebidas", pvp: 16.00, iva: 10 },
+      { id: "pl43", nombre: "Rueda verdejo 100% (copa)", familia: "Bebidas", pvp: 2.50, iva: 10 },
+      { id: "pl44", nombre: "Rueda verdejo 100% (botella)", familia: "Bebidas", pvp: 15.00, iva: 10 },
+      { id: "pl45", nombre: "Champagne Moët & Chandon (botella)", familia: "Bebidas", pvp: 60.00, iva: 10 },
+      { id: "pl46", nombre: "Juve Camps (botella)", familia: "Bebidas", pvp: 40.00, iva: 10 }
     ],
     // Escandallo = receta de cada plato: qué productos del almacén lleva y en qué cantidad por
     // ración. Con eso se calcula el coste real (y el margen real, sustituyendo al margen de
@@ -731,33 +783,14 @@ body{padding-top:28px}
     // cuando se piden "solas"; al combinarlas con un refresco, tpvAnadirCombinado da de alta (o
     // reutiliza) un plato concreto como "Whisky con Coca-Cola" con ambas líneas.
     escandallos: {
-      pl1: [
-        { id: "esc1", producto_id: "i3", nombre: "Patatas", cantidad: 0.2, unidad: "kg" },
-        { id: "esc2", producto_id: "i4", nombre: "Aceite de oliva", cantidad: 0.03, unidad: "l" }
-      ],
-      pl4: [
-        { id: "esc3", producto_id: "i2", nombre: "Jamón ibérico", cantidad: 0.1, unidad: "kg" }
-      ],
       pl6: [ { id: "esc4", producto_id: "i6", nombre: "Whisky", cantidad: 4, unidad: "cl" } ],
       pl7: [ { id: "esc6", producto_id: "i8", nombre: "Ron", cantidad: 4, unidad: "cl" } ],
       pl8: [ { id: "esc7", producto_id: "i9", nombre: "Ginebra", cantidad: 4, unidad: "cl" } ]
     },
-    compras: [
-      { id: "c1", numero: "A-2026-0931", fecha: "2026-10-15", total: 612.40, estado: "confirmada", tipo_documento: "albaran", proveedor_id: "p1", proveedores: { nombre: "Distribuciones Hosteleras Granada SL" } },
-      { id: "c2", numero: "A-2026-0944", fecha: "2026-10-22", total: 284.95, estado: "revisar", tipo_documento: "albaran", proveedor_id: "p2", proveedores: { nombre: "Pescados Costa Tropical" } },
-      { id: "c3", numero: "F-2026-0118", fecha: "2026-10-24", total: 97.30, estado: "pendiente", tipo_documento: "factura", proveedores: null }
-    ],
-    compraLineas: {
-      c1: [
-        { id: "l3", producto_id: "i1", nombre: "Gambas blancas", unidad_compra: "kg", cantidad: 4, precio_unitario: 13.10 },
-        { id: "l4", producto_id: "i3", nombre: "Patatas", unidad_compra: "kg", cantidad: 25, precio_unitario: 1.10 },
-        { id: "l5", producto_id: "i4", nombre: "Aceite de oliva", unidad_compra: "l", cantidad: 10, precio_unitario: 4.10 }
-      ],
-      c2: [
-        { id: "l1", texto_original: "GAMBA BLANCA CONG 2KG", unidad_compra: "kg", cantidad: 2, precio_unitario: 14.9, codigo: "GB-2K" },
-        { id: "l2", texto_original: "LIMON 1A KG", unidad_compra: "kg", cantidad: 5, precio_unitario: 1.3, codigo: null }
-      ]
-    },
+    // Negocio recién configurado: sin compras todavía — se irán dando de alta según lleguen
+    // albaranes y facturas reales (por foto, voz o a mano).
+    compras: [],
+    compraLineas: {},
     ventas: [
       { id: "v1", numero: "TK-Z-2026-10-28", fecha: "2026-10-28", total: 842.10, estado: "confirmada", tipo_documento: "ticket_z" },
       { id: "v2", numero: "TK-Z-2026-10-27", fecha: "2026-10-27", total: 695.30, estado: "revisar", tipo_documento: "ticket_z" }
@@ -1544,7 +1577,7 @@ body{padding-top:28px}
   }
   function pintarGateRolInicio(){
     $("rolGateBody").innerHTML =
-      '<div class="logo" style="text-align:center">Ratio <span class="dot2">Hostelería</span></div>' +
+      '<div class="logo" style="text-align:center">ORENES<span class="dot2">.</span></div>' +
       '<p class="lead" style="text-align:center; margin-bottom:24px">¿Quién va a usar la tablet ahora?</p>' +
       '<button class="rol-opcion" type="button" data-rol="master">' +
         '<span class="ic">👑</span>' +
@@ -1561,7 +1594,7 @@ body{padding-top:28px}
   function pintarGateRolClave(rol){
     var etiqueta = rol === "master" ? "Máster" : "Camarero";
     $("rolGateBody").innerHTML =
-      '<div class="logo" style="text-align:center">Ratio <span class="dot2">Hostelería</span></div>' +
+      '<div class="logo" style="text-align:center">ORENES<span class="dot2">.</span></div>' +
       '<p class="lead" style="text-align:center">Clave de ' + etiqueta + '</p>' +
       '<form class="card stack" id="rolClaveForm">' +
         '<input type="password" inputmode="numeric" autocomplete="off" id="rolClaveInput" placeholder="Clave" autofocus>' +
