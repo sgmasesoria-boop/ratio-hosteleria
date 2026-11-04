@@ -1528,6 +1528,8 @@ body{padding-top:28px}
     $("tabs").hidden = esCamarero; // con rol camarero solo existe la vista TPV
     $("btnUsuarios").hidden = esCamarero;
     $("btnBuscar").hidden = esCamarero; // busca productos/proveedores/documentos — fuera del TPV
+    $("btnEditarSalon").hidden = esCamarero; // mover/añadir mesas y accesorios es cosa de Máster
+    if (esCamarero && salonEditando) toggleEditarSalon(false); // por si ya estaba editando al cambiar de rol
   }
   function bloquearRol(){
     rolActivo = null;
@@ -1828,6 +1830,7 @@ body{padding-top:28px}
   }
 
   function toggleEditarSalon(on){
+    if (on && rolActivo === "camarero") return; // defensa en profundidad: no es función de camarero
     salonEditando = on;
     $("salonPaleta").hidden = !on;
     pintarSalon();
