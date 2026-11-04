@@ -181,8 +181,12 @@ nav.tabs button.active{color:var(--accent)}
 /* A propósito NO es position:absolute: si el desplegable "flotase" encima de lo que viene
    justo debajo (el botón "Guardar"), lo taparía del todo — el toque caería sobre una sugerencia,
    no sobre el botón, y parecería que "Guardar" no hace nada. Al ir en el flujo normal, empuja
-   el resto del formulario hacia abajo en vez de taparlo. */
-.ac-list{position:relative; margin-top:4px; z-index:5; max-height:38vh; overflow-y:auto;
+   el resto del formulario hacia abajo en vez de taparlo. OJO: por eso mismo la altura máxima se
+   mantiene pequeña (antes 38vh) — en formularios con campos DEBAJO del autocompletado (p.ej.
+   "Ingrediente base" en Nuevo plato, con la cantidad, la unidad y el botón "Crear plato" justo
+   después), un desplegable alto empuja esos campos fuera de la pantalla en un móvil con el
+   teclado abierto, y parece que "no deja modificar la cantidad" o que "Crear" no hace nada. */
+.ac-list{position:relative; margin-top:4px; z-index:5; max-height:150px; overflow-y:auto;
   background:var(--surface); border:1px solid var(--border); border-radius:10px;
   box-shadow:0 4px 14px rgba(0,0,0,.10)}
 .ac-item{padding:9px 12px; font-size:.88rem; cursor:pointer; display:flex; justify-content:space-between; gap:8px; align-items:center}
@@ -3988,7 +3992,7 @@ body{padding-top:28px}
       '<input type="text" id="nuevoPlatoFamilia" placeholder="Ej. Comida" value="'+esc(tpvFamiliaActiva||"")+'" style="margin-bottom:4px">' +
       '<p class="meta" id="nuevoPlatoFamiliaNota" style="margin:0 0 12px">&nbsp;</p>' +
       '<div class="row" style="gap:8px; margin-bottom:4px">' +
-        '<div style="flex:1"><label>Precio de venta</label><input type="number" step="0.01" min="0" id="nuevoPlatoPvp" placeholder="0,00"></div>' +
+        '<div style="flex:1"><label>Precio de venta</label><input type="text" inputmode="decimal" id="nuevoPlatoPvp" placeholder="0,00"></div>' +
         '<div style="flex:1"><label>IVA</label><div style="padding:11px 0; font-weight:700">10% (hostelería)</div></div>' +
       '</div>' +
       '<p class="meta" style="margin:0 0 12px">Venta servida en barra/mesa: siempre 10%, alcohol incluido (art. 91 LIVA).</p>' +
@@ -4000,7 +4004,7 @@ body{padding-top:28px}
         '<label>Ingrediente base (de Artículos/Almacén)</label>' +
         '<input type="text" id="nuevoPlatoBaseNombre" placeholder="Ej. Whisky" style="margin-bottom:8px">' +
         '<div class="row" style="gap:8px">' +
-          '<div style="flex:1"><label>Cantidad por ración</label><input type="number" step="any" min="0" id="nuevoPlatoBaseCant" placeholder="4"></div>' +
+          '<div style="flex:1"><label>Cantidad por ración</label><input type="text" inputmode="decimal" id="nuevoPlatoBaseCant" placeholder="4"></div>' +
           '<div style="flex:1"><label>Unidad</label><input type="text" id="nuevoPlatoBaseUnidad" placeholder="cl"></div>' +
         '</div>' +
       '</div>' +
@@ -4025,8 +4029,11 @@ body{padding-top:28px}
       }
     });
     $("guardarNuevoPlato").addEventListener("click", function(){
+      // Red de seguridad: cualquier fallo inesperado aquí dentro se ve como un aviso, nunca
+      // como un botón que "no hace nada" — eso es lo más confuso que le puede pasar al usuario.
+      try {
       var nombre = $("nuevoPlatoNombre").value.trim();
-      var pvp = parseFloat($("nuevoPlatoPvp").value);
+      var pvp = parseFloat(($("nuevoPlatoPvp").value || "").trim().replace(",", "."));
       var esCombinable = $("nuevoPlatoCombinable").checked;
       var familia = esCombinable ? "Combinados" : ($("nuevoPlatoFamilia").value.trim() || "Sin categoría");
       if (!nombre){ toast("Escribe el nombre del plato.", "err"); return; }
@@ -4040,7 +4047,7 @@ body{padding-top:28px}
       if (pvp >= 0) nuevo.pvp = pvp;
       if (esCombinable){
         var baseNombre = $("nuevoPlatoBaseNombre").value.trim();
-        var baseCant = parseFloat($("nuevoPlatoBaseCant").value);
+        var baseCant = parseFloat(($("nuevoPlatoBaseCant").value || "").trim().replace(",", "."));
         var baseUnidad = $("nuevoPlatoBaseUnidad").value.trim() || "ud";
         if (!baseNombre){ toast("Indica el ingrediente base (p.ej. Whisky).", "err"); return; }
         if (!(baseCant > 0)){ toast("Indica la cantidad por ración del ingrediente base.", "err"); return; }
@@ -4077,6 +4084,9 @@ body{padding-top:28px}
       } else {
         pintarPlatosLista($("platosBuscar") ? $("platosBuscar").value : "");
         abrirFichaPlato(nuevo.id);
+      }
+      } catch (e){
+        toast("No se ha podido crear el plato (" + e.message + "). Pruébalo otra vez.", "err");
       }
     });
   }
