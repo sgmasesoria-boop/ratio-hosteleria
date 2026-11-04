@@ -756,22 +756,22 @@ body{padding-top:28px}
       { id: "pl32", nombre: "Rabo de toro", familia: "Elaborados", pvp: 19.00, iva: 10 },
       { id: "pl33", nombre: "Solomillo al whisky", familia: "Elaborados", pvp: 19.00, iva: 10 },
       { id: "pl34", nombre: "Tartar de atún", familia: "Elaborados", pvp: 13.00, iva: 10 },
-      // Vinos: son bebida, no comida — igual que el resto de la carta de bebidas, van a la
-      // familia "Bebidas" (junto con cañas, combinados y refrescos que ya tenéis dados de
-      // alta), no a ninguna familia de comida. Copa y botella quedan como dos artículos
-      // distintos porque cada uno tiene su propio precio.
+      // Vinos por copa: son bebida, no comida — van a la familia "Bebidas" (junto con cañas,
+      // combinados y refrescos que ya tenéis dados de alta), no a ninguna familia de comida.
       { id: "pl35", nombre: "Rioja crianza (copa)", familia: "Bebidas", pvp: 2.50, iva: 10 },
-      { id: "pl36", nombre: "Rioja crianza (botella)", familia: "Bebidas", pvp: 16.00, iva: 10 },
       { id: "pl37", nombre: "Ribera del Duero (copa)", familia: "Bebidas", pvp: 2.50, iva: 10 },
-      { id: "pl38", nombre: "Ribera del Duero (botella)", familia: "Bebidas", pvp: 16.00, iva: 10 },
       { id: "pl39", nombre: "Manzanilla de San Lúcar (copa)", familia: "Bebidas", pvp: 3.00, iva: 10 },
-      { id: "pl40", nombre: "Manzanilla de San Lúcar (botella)", familia: "Bebidas", pvp: 16.00, iva: 10 },
       { id: "pl41", nombre: "Blanco del Condado de Huelva (copa)", familia: "Bebidas", pvp: 3.00, iva: 10 },
-      { id: "pl42", nombre: "Blanco del Condado de Huelva (botella)", familia: "Bebidas", pvp: 16.00, iva: 10 },
       { id: "pl43", nombre: "Rueda verdejo 100% (copa)", familia: "Bebidas", pvp: 2.50, iva: 10 },
-      { id: "pl44", nombre: "Rueda verdejo 100% (botella)", familia: "Bebidas", pvp: 15.00, iva: 10 },
-      { id: "pl45", nombre: "Champagne Moët & Chandon (botella)", familia: "Bebidas", pvp: 60.00, iva: 10 },
-      { id: "pl46", nombre: "Juve Camps (botella)", familia: "Bebidas", pvp: 40.00, iva: 10 }
+      // Botella completa: aparte, en su propia pestaña al final del todo (familia "Botellas") —
+      // es la última en familiasConPlatos() porque sus platos son los últimos del array.
+      { id: "pl36", nombre: "Rioja crianza", familia: "Botellas", pvp: 16.00, iva: 10 },
+      { id: "pl38", nombre: "Ribera del Duero", familia: "Botellas", pvp: 16.00, iva: 10 },
+      { id: "pl40", nombre: "Manzanilla de San Lúcar", familia: "Botellas", pvp: 16.00, iva: 10 },
+      { id: "pl42", nombre: "Blanco del Condado de Huelva", familia: "Botellas", pvp: 16.00, iva: 10 },
+      { id: "pl44", nombre: "Rueda verdejo 100%", familia: "Botellas", pvp: 15.00, iva: 10 },
+      { id: "pl45", nombre: "Champagne Moët & Chandon", familia: "Botellas", pvp: 60.00, iva: 10 },
+      { id: "pl46", nombre: "Juve Camps", familia: "Botellas", pvp: 40.00, iva: 10 }
     ],
     // Escandallo = receta de cada plato: qué productos del almacén lleva y en qué cantidad por
     // ración. Con eso se calcula el coste real (y el margen real, sustituyendo al margen de
